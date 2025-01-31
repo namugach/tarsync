@@ -23,12 +23,17 @@ EXCLUDE_DIRS="--exclude=/proc \
 --exclude=/var/run/docker.sock"
 
 
+
+
+echo "백업할 데이터의 크기를 재고 있습니다."
+TOTAL_SIZE=$(sudo du -sb $EXCLUDE_DIRS / | awk '{print $1}')
+TOTAL_SIZE_GB=$(echo "scale=2; $TOTAL_SIZE/1024/1024/1024" | bc)
+echo "백업할 데이터 크기: ${TOTAL_SIZE_GB} GB"
+
 echo "백업을 시작합니다: ${TAR_FILE}"
-
 cd /
-sudo tar -cvpjf $TAR_FILE \
-$EXCLUDE_DIRS \
---one-file-system / 
-
+sudo tar -cpjf - $EXCLUDE_DIRS \
+--one-file-system -C / . | \
+pv -s $TOTAL_SIZE > $TAR_FILE
 
 echo "백업 완료: ${TAR_FILE}"
