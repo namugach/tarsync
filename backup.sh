@@ -27,25 +27,26 @@ EXCLUDE_DIRS="--exclude=/proc \
 --exclude=/var/run/docker.sock \
 --exclude=/swapfile"
 
-# 백업할 데이터의 크기를 계산
-echo "백업할 데이터의 크기를 재고 있습니다."
-TOTAL_SIZE=$(sudo du -sb $EXCLUDE_DIRS / | awk '{print $1}')
-TOTAL_SIZE_GB=$(echo "scale=2; $TOTAL_SIZE/1024/1024/1024" | bc)
-echo "백업할 데이터 크기: ${TOTAL_SIZE_GB} GB"
 
 # tar 백업 파일 생성
-echo "백업을 시작합니다: ${TAR_FILE}"
+echo "백업을 시작합니다."
+
+echo "파일을 묶습니다."
+echo "경로: ${TAR_FILE}"
+
 cd /
-sudo tar -cf - \
+sudo tar cf - \
 -P \
 $EXCLUDE_DIRS \
---one-file-system / | pv -s $TOTAL_SIZE | sudo tee $TAR_FILE > /dev/null
+--one-file-system / \
+| pv > $TAR_FILE | sudo tee $TAR_FILE > /dev/null
 
-echo "백업 완료: ${TAR_FILE}"
+echo "파일 묶기 완료: ${TAR_FILE}"
 
 # TAR 파일 용량 출력
-TAR_FILE_SIZE=$(du -sh $TAR_FILE | awk '{print $1}')
-echo "원본 TAR 파일 크기: ${TAR_FILE_SIZE}"
+TAR_FILE_SIZE=$(du -sb $TAR_FILE | awk '{print $1}')
+TAR_FILE_SIZE_GB=$(echo "scale=2; $TAR_FILE_SIZE/1024/1024/1024" | bc)
+echo "원본 TAR 파일 크기: ${TAR_FILE_SIZE_GB} GB"
 
 # 압축 과정 시작
 echo "압축을 시작합니다."
@@ -58,11 +59,11 @@ pv $TAR_FILE | gzip > $GZ_FILE
 COMPRESSED_SIZE=$(du -sb $GZ_FILE | awk '{print $1}')
 COMPRESSED_SIZE_GB=$(echo "scale=2; $COMPRESSED_SIZE/1024/1024/1024" | bc)
 
-echo "원본 파일 크기: ${TOTAL_SIZE_GB} GB"
+echo "원본 파일 크기: ${TAR_FILE_SIZE_GB} GB"
 echo "압축된 파일 크기: ${COMPRESSED_SIZE_GB} GB"
 
 # 압축률 계산 (백분율 출력)
-COMPRESSION_RATIO=$(echo "scale=2; (1 - $COMPRESSED_SIZE / $TOTAL_SIZE) * 100" | bc)
+COMPRESSION_RATIO=$(echo "scale=2; (1 - $COMPRESSED_SIZE / $TAR_FILE_SIZE) * 100" | bc)
 echo "압축률: ${COMPRESSION_RATIO}%"
 
 echo "백업 및 압축 완료: ${GZ_FILE}"
