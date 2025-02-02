@@ -9,7 +9,6 @@ DATE=$(date +%Y_%m_%d_%p_%I_%M_%S)
 WORK_DIR=$BACKUP_DIR/$DATE
 TAR_FILE="${WORK_DIR}/tarsync.tar.gz"
 
-
 # 제외할 디렉토리 목록 설정 (배열로 변경)
 EXCLUDE_DIRS=(
   "--exclude=/proc"
@@ -30,9 +29,6 @@ EXCLUDE_DIRS=(
   "--exclude=/swapfile"
 )
 
-# 기록을 남기시겠습니까? (Y/n)
-# Y일 경우에는 vi $WORK_DIR/
-
 # 백업 시작 메시지
 echo "📂 백업을 시작합니다."
 echo "📌 저장 경로: ${TAR_FILE}"
@@ -51,7 +47,24 @@ echo "✅ 압축 완료: ${TAR_FILE}"
 echo "🗜 압축된 파일 크기: ${COMPRESSED_SIZE_GB} GB"
 
 # source 디렉토리 안 최근 5개 파일을 강조하여 출력
-echo -e "\033[1;34m📁 source 디렉토리 내 최근 5개 파일:\033[0m"
-ls -lh $BACKUP_DIR | awk '{$1=$2=$3=$4=""; print $0}' | sed 's/^ *//' | tail -n 5 | awk '
-NR<5 {print $0} 
-NR==5 {printf "\033[1;32m%s (✔ 작업 완료)\033[0m\n", $0}'
+FILES=$(ls -ltr --time-style=long-iso $BACKUP_DIR | awk 'NR>1 {print $6, $7, $8}')
+COUNT=0
+LINES=()
+
+while read -r LINE; do
+  COUNT=$((COUNT + 1))
+  LINES+=("$LINE")
+done <<< "$FILES"
+
+if [ "$COUNT" -eq 0 ]; then
+  echo "📂 source 디렉토리에 파일이 없습니다."
+else
+  for ((i=0; i<COUNT; i++)); do
+    if [ "$i" -eq $((COUNT-1)) ] && [ "$COUNT" -lt 5 ]; then
+      # 파일이 5개 미만일 때, 마지막 파일 강조
+      echo -e "\033[1;32m${LINES[i]} (✔ 작업 완료)\033[0m"
+    else
+      echo "${LINES[i]}"
+    fi
+  done
+fi
