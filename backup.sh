@@ -101,3 +101,11 @@ while read -r FILE; do
   fi
   i=$((i+1))
 done <<< "$FILES"
+
+# log.md 파일 출력
+if [ -f "$LOG_FILE" ]; then
+  echo -e "\n📜 백업 로그 내용:"
+  echo "-----------------------------------"
+  cat "$LOG_FILE"
+  echo "-----------------------------------"
+fi
