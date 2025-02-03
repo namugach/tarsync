@@ -4,8 +4,6 @@ source $(dirname "$(realpath "$0")")/config.sh
 set -e
 
 # 현재 작업 디렉토리를 기준으로 백업 디렉토리 설정
-BASE_PATH=$(pwd)
-STORE_DIR=$BASE_PATH/store
 DATE=$(date +%Y_%m_%d_%p_%I_%M_%S)  # 날짜와 시간을 포함한 파일명 생성
 WORK_DIR=$STORE_DIR/$DATE
 TAR_FILE="${WORK_DIR}/tarsync.tar.gz"

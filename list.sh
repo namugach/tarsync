@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# 설정 파일 로드
 source $(dirname "$(realpath "$0")")/config.sh
 
 # 첫 번째 인자: 한 페이지당 출력할 개수 (기본값: 전체 출력)
@@ -18,8 +19,7 @@ if [ ! -d "$STORE_DIR" ]; then
 fi
 
 # 전체 파일 목록 가져오기 (공백 포함 파일명 대응)
-FILES=$(find "$STORE_DIR" -mindepth 1 -maxdepth 1 -type d -printf "%TY-%Tm-%Td %TH:%TM %p\n" | sort)
-
+FILES=$(ls -lthr "$STORE_DIR" | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}')
 TOTAL_FILES=$(echo "$FILES" | wc -l)
 
 # 페이지네이션 설정
@@ -32,18 +32,20 @@ if [ "$PAGE_SIZE" -gt 0 ]; then
     START=$(( (PAGE_NUM - 1) * PAGE_SIZE + 1 ))
     FILES=$(echo "$FILES" | sed -n "${START},$((START + PAGE_SIZE - 1))p")
   fi
+else
+  # PAGE_SIZE가 0이면 전체 파일 출력
+  PAGE_SIZE=$TOTAL_FILES
 fi
 
 # 선택된 디렉토리의 총 용량 초기화
 TOTAL_SIZE=0
-
 i=0
 res=""
 
 while IFS= read -r FILE; do
   # 파일명 추출
-  FILE_PATH=$(echo "$FILE" | awk '{print $3}')
-  BACKUP_DIR="$FILE_PATH"
+  FILE_NAME=$(echo "$FILE" | awk '{print $4}')
+  BACKUP_DIR="$STORE_DIR/$FILE_NAME"
 
   # 실제 디렉토리 용량 구하기 (디렉토리가 존재하는지 확인 후 진행)
   if [ -d "$BACKUP_DIR" ]; then
@@ -56,7 +58,9 @@ while IFS= read -r FILE; do
 
   # log.md 파일 존재 여부 확인
   LOG_ICON="❌"
-  [ -f "$BACKUP_DIR/log.md" ] && LOG_ICON="📖"
+  if [ -f "$BACKUP_DIR/log.md" ]; then
+    LOG_ICON="📖"
+  fi
 
   # 선택된 디렉토리 인덱스 처리 (음수일 경우 마지막 항목 선택)
   if [ "$SELECT_INDEX" -lt 0 ]; then
@@ -74,8 +78,8 @@ while IFS= read -r FILE; do
   # 총 용량 계산
   TOTAL_SIZE=$((TOTAL_SIZE + SIZE_BYTES))
 
-  # 출력 형식
-  res+="$ICON $LOG_ICON $SIZE $FILE_PATH\n"
+  # 출력 형식 (넘버링 추가)
+  res+="$ICON $LOG_ICON $SIZE $FILE - $((i+1))\n"
   i=$((i+1))
 done <<< "$FILES"
 
@@ -84,16 +88,13 @@ res+="\n"
 # 선택된 디렉토리의 총 용량 출력
 TOTAL_SIZE_HUMAN=$(numfmt --to=iec --suffix=B --padding=7 <<< "$TOTAL_SIZE" 2>/dev/null)
 [ -z "$TOTAL_SIZE_HUMAN" ] && TOTAL_SIZE_HUMAN="0B"
-
 res+="🔳 total: $(du -sh "$STORE_DIR" 2>/dev/null | awk '{print $1}')B\n"
 res+="🔳 page total: $TOTAL_SIZE_HUMAN\n"
 
 # 페이지네이션 정보 추가
 TOTAL_PAGES=$(( (TOTAL_FILES + PAGE_SIZE - 1) / PAGE_SIZE ))
 [ "$TOTAL_PAGES" -eq 0 ] && TOTAL_PAGES=1  # 최소 1 페이지로 보정
-
 res+="🔳 Page ${PAGE_NUM#-} / $TOTAL_PAGES (Total: $TOTAL_FILES files)"
-
 res+="\n"
 
 # echo 실행할 때 안전하게 처리
