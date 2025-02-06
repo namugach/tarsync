@@ -1,4 +1,4 @@
-import util from "../util.ts";
+import util from "../util/util.ts";
 const { $ } = util;
 
 class Logger {

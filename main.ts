@@ -1,5 +1,6 @@
-import util from "./src/util.ts";
+import util from "./src/util/util.ts";
 import Logger from "./src/compo/Logger.ts";
+import DiskFree from "./src/util/DiskFree.ts";
 
 const TEST_OFF = false; 
 const 
@@ -27,10 +28,33 @@ async function getFreeSpaceGB(store_dir_path: string): Promise<number> {
   return parseInt(res, 10);
 }
 
-async function checkStoreSpace(minSpaceGB:number = 10, store_dir_path:string) {
+async function checkStoreSpace(minSpaceGB:number, store_dir_path:string) {
   if(minSpaceGB < await getFreeSpaceGB(store_dir_path)) {
     console.error(`⚠️ 저장 공간이 부족합니다. 최소 ${minSpaceGB}GB 이상 필요합니다.`);
     Deno.exit(1);
   }
 }
 
+
+
+// const backupDisk = "/";
+// const diskinfo = await util.getDiskinfo(backupDisk);
+// const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskinfo.mount);
+// const fanalSize = await util.calculateFinalDiskUsage(diskinfo, rootTotalUsedKb);
+
+
+// await util.ensureCommandExists("pv", "sudo apt install pv");
+// await util.ensureCommandExists("rsync", "sudo apt install rsync");
+// await util.ensureCommandExists("tar", "sudo apt install tar");
+
+// console.log(fanalSize);
+
+
+
+console.log(util.getStoreDirPath());
+console.log(util.getBasePath());
+// console.log(await util.getDiskFreeWithPathKb(util.getStoreDirPath()));
+
+const df = new DiskFree("/".toString());
+await df.load();
+console.log(df);
