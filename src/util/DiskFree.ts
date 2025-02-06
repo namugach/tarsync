@@ -4,7 +4,7 @@ import util from "./util.ts";
  * DiskFree 클래스는 특정 경로에 대한 디스크 정보를 제공합니다.
  * 이 클래스는 `df` 명령어를 기반으로 동작하며, 디스크 장치 이름, 마운트 지점, 용량 정보 등을 포함합니다.
  * 
- * ## 사용법:
+ * ### 사용법:
  * ```ts
  * const diskFree = new DiskFree("/path/to/directory");
  * await diskFree.load(); // 디스크 정보 로드

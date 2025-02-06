@@ -37,17 +37,17 @@ async function checkStoreSpace(minSpaceGB:number, store_dir_path:string) {
 
 
 
-// const backupDisk = "/";
-// const diskinfo = await util.getDiskinfo(backupDisk);
-// const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskinfo.mount);
-// const fanalSize = await util.calculateFinalDiskUsage(diskinfo, rootTotalUsedKb);
+const backupDisk = "/";
+const diskfree = await util.getDiskFree(backupDisk);
+const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskfree.mount);
+const fanalSize = await util.calculateFinalDiskUsage(diskfree, rootTotalUsedKb);
 
 
-// await util.ensureCommandExists("pv", "sudo apt install pv");
-// await util.ensureCommandExists("rsync", "sudo apt install rsync");
-// await util.ensureCommandExists("tar", "sudo apt install tar");
+await util.ensureCommandExists("pv", "sudo apt install pv");
+await util.ensureCommandExists("rsync", "sudo apt install rsync");
+await util.ensureCommandExists("tar", "sudo apt install tar");
 
-// console.log(fanalSize);
+console.log(fanalSize);
 
 
 
@@ -55,6 +55,6 @@ console.log(util.getStoreDirPath());
 console.log(util.getBasePath());
 // console.log(await util.getDiskFreeWithPathKb(util.getStoreDirPath()));
 
-const df = new DiskFree("/".toString());
+const df = new DiskFree("/mnt");
 await df.load();
 console.log(df);

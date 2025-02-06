@@ -1,4 +1,5 @@
 import { config } from "../../config.ts";
+import DiskFree from "./DiskFree.ts";
 
 /**
  * 디스크 정보를 나타내는 인터페이스입니다.
@@ -121,34 +122,22 @@ const util = {
 
 
   /**
-   * 주어진 경로가 속한 디스크의 정보를 반환합니다.
+   * 주어진 경로에 대한 디스크 정보를 로드하고 DiskFree 인스턴스를 반환합니다.
    * 
-   * @param path - 확인할 파일 또는 디렉토리의 경로
-   * @returns DiskInfo 객체를 반환합니다. 이 객체에는 디스크 장치 이름과 마운트 지점이 포함됩니다.
-   * @throws 오류가 발생하면 에러 메시지를 출력하고 호출자에게 에러를 다시 던집니다.
+   * @param path - 디스크 정보를 조회할 파일 또는 디렉토리의 경로
+   * @returns 초기화된 DiskFree 인스턴스를 반환합니다.
+   * @throws 디스크 정보를 로드하는 중 오류가 발생하면 예외가 던져집니다.
+   * 
+   * ### 사용법:
+   * ```ts
+   * const diskInfo = await getDiskFree("/path/to/directory");
+   * console.log(diskInfo.toString()); // 디스크 정보 출력
+   * ```
    */
-  async getDiskinfo(path: string): Promise<DiskInfo> {
-    // `df --output=source,target` 명령어를 실행하여 경로가 속한 디스크의 정보를 가져옵니다.
-    // `tail -n 1`을 사용하여 마지막 줄(실제 데이터)만 추출합니다.
-    return await this.$$(`df --output=source,target "${path}" | tail -n 1`)
-      .then(res => {
-        // 결과 문자열을 공백으로 분리하여 배열로 변환합니다.
-        const arr = res.split(/\s+/);
-
-        // DiskInfo 객체를 생성합니다.
-        const diskInfo: DiskInfo = {
-          device: arr[0], // 첫 번째 열: 디스크 장치 이름 (예: "/dev/sda1")
-          mount: arr[1]   // 두 번째 열: 마운트 지점 (예: "/")
-        };
-
-        // 생성된 DiskInfo 객체를 반환합니다.
-        return diskInfo;
-      })
-      .catch(err => {
-        // 오류 처리: 디스크 정보를 가져오는 중 오류가 발생한 경우
-        console.error("디스크 정보를 가져오는 중 오류 발생:", err.message);
-        throw err; // 에러를 다시 던져서 호출자에게 전달합니다.
-      });
+  async getDiskFree(path: string): Promise<DiskFree> {
+    const df = new DiskFree(path); // DiskFree 인스턴스 생성
+    await df.load(); // 디스크 정보 로드
+    return df; // 초기화된 DiskFree 인스턴스 반환
   },
   
   /**
@@ -223,7 +212,7 @@ const util = {
    * @param totalUsedKb - 디스크의 초기 전체 사용량(KB 단위)
    * @returns 제외 경로들을 고려한 최종 사용량(KB 단위)을 반환합니다.
    */
-  async calculateFinalDiskUsage(diskinfo: DiskInfo, totalUsedKb: number): Promise<number> {
+  async calculateFinalDiskUsage(diskinfo: DiskFree, totalUsedKb: number): Promise<number> {
     let res = totalUsedKb; // 초기 사용량을 저장합니다.
 
     // 제외 경로 목록을 순회하며 각 경로의 유효성과 크기를 확인합니다.
