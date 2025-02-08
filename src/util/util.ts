@@ -4,9 +4,9 @@ import DiskFree from "./DiskFree.ts";
 
 
 const util = {
-  async $(cmd: string, ...args: string[]) {
-    const command = new Deno.Command(cmd, {
-      args: [...args],
+  async $(...args: string[]) {
+    const command = new Deno.Command("/bin/sh", {
+      args: ["-c", args.join(" ")],  // 명령어에 전달할 인자들
       stdin: "inherit",
       stdout: "inherit",
       stderr: "inherit",
@@ -267,6 +267,41 @@ const util = {
       console.error(`⚠️  저장 공간이 부족합니다. 최소 ${util.convertSize(backupSize)} 이상 필요합니다.`);
       console.error(diskFree.showAll());
       Deno.exit(1); // 저장 공간 부족으로 인해 프로그램 종료
+    }
+  },
+  /**
+   * 지정된 대상 디렉토리 또는 파일을 백업합니다.
+   * 
+   * 이 메서드는 `tar` 명령어를 사용하여 대상 경로의 데이터를 압축하고, 
+   * `pv`를 통해 진행 상황을 표시하며, `gzip`으로 최종적으로 압축한 결과를 저장합니다.
+   * 
+   * ### 동작:
+   * 1. `tar` 명령어를 실행하여 대상 경로의 데이터를 아카이브로 생성합니다.
+   *    - `-P`: 절대 경로를 유지합니다.
+   *    - `--one-file-system`: 다른 파일 시스템(예: `/boot`, `/home`)으로 넘어가지 않도록 제한합니다.
+   *    - `--acls`: ACL(액세스 제어 목록) 정보를 포함합니다.
+   *    - `--xattrs`: 확장 속성(xattr)을 포함합니다.
+   *    - `${excludeDirs}`: 제외할 디렉토리 또는 파일 목록을 지정합니다.
+   * 2. `pv`를 통해 진행 상황을 표시합니다.
+   * 3. `gzip`으로 압축한 결과를 지정된 파일 경로에 저장합니다.
+   * 
+   * @param target - 백업할 대상 디렉토리 또는 파일의 경로입니다.
+   *                 예: `/`, `/home/user`, `/var/www`
+   * @param tarDirPathFileName - 백업 파일을 저장할 경로와 파일 이름입니다.
+   *                             예: `/mnt/backup/tarsync/store/backup.tar.gz`
+   * @param excludeDirs - 백업에서 제외할 디렉토리 또는 파일 목록입니다.
+   *                      예: `--exclude=/proc --exclude=/sys --exclude=/tmp`
+   * 
+   * @throws 오류가 발생하면 에러 메시지를 출력하고 호출자에게 에러를 전달합니다.
+   */
+  async backup(target: string, tarDirPathFileName: string, excludeDirs: string): Promise<void> {
+    try {
+      // `tar` 명령어를 실행하여 대상 경로의 데이터를 압축하고 저장합니다.
+      await this.$(`sudo tar cf - -P --one-file-system --acls --xattrs ${excludeDirs} ${target} | pv | gzip > ${tarDirPathFileName}`);
+    } catch (error) {
+      // 오류 처리: 백업 중 오류가 발생한 경우
+      console.error("백업 중 오류 발생:", (error as Error).message);
+      throw error; // 에러를 다시 던져서 호출자에게 전달합니다.
     }
   }
 }

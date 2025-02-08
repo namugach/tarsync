@@ -2,41 +2,42 @@ import util from "./src/util/util.ts";
 import Logger from "./src/compo/Logger.ts";
 import DiskFree from "./src/util/DiskFree.ts";
 
-const TEST_OFF = false; 
-const 
-  { $, $$ } = util,
-  STORE_DIR_PATH = util.getStoreDirPath(),
-  WORK_DIR_PATH = await util.getWorkDirPath(),
-  BACKUP_FILE_PATH = `${WORK_DIR_PATH}/tarsync.tar.gz`,
-  logger = new Logger(WORK_DIR_PATH);
-
-if(TEST_OFF) {
+const { $, $$ } = util;
   
-  await util.checkInstalledProgram("vim");
-  await util.checkInstalledProgram("gzip");
-  await util.checkInstalledProgram("pv");
 
+async function _a() {
+  const BACKUP_DISK_PATH = "/";
+  const WORK_DIR_PATH = await util.getWorkDirPath();
+  const BACKUP_FILE_PATH = `${WORK_DIR_PATH}/tarsync.tar.gz`;
+  const logger = new Logger(WORK_DIR_PATH);
+  const diskfree = await util.getDiskFree(BACKUP_DISK_PATH);
+  const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskfree.mount);
+  const fanalSize = await util.calculateFinalDiskUsage(diskfree, 
+    rootTotalUsedKb);
+  const df = new DiskFree(util.getStoreDirPath());
+  await df.load();
+  
+  /* 실행할 때 프로그램 유효성 검사 */
+  await util.ensureCommandExists("pv", "sudo apt install pv");
+  await util.ensureCommandExists("rsync", "sudo apt install rsync");
+  await util.ensureCommandExists("tar", "sudo apt install tar");
+
+  /* 용량 확인 */
+  util.checkBackupStoreSize(df, fanalSize);
+
+  /* 디렉토리 생성 */
   await util.createStoreDir();
   await util.mkdir(WORK_DIR_PATH);
-  logger.choiceWirte();
+
+  /* log.md 파일 작성 */
+  await logger.choiceWirte();
+
+  /* 백업 시작 메시지 */
+  console.log("📂 백업을 시작합니다.");
+  console.log(`📌 저장 경로: ${BACKUP_FILE_PATH}`);
+  
+  /* 백업 시작 */
+  await util.backup(BACKUP_DISK_PATH, BACKUP_FILE_PATH, util.getExclude());
 }
 
-
-
-
-const backupDisk = "/";
-const diskfree = await util.getDiskFree(backupDisk);
-const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskfree.mount);
-const fanalSize = await util.calculateFinalDiskUsage(diskfree, rootTotalUsedKb);
-
-
-await util.ensureCommandExists("pv", "sudo apt install pv");
-await util.ensureCommandExists("rsync", "sudo apt install rsync");
-await util.ensureCommandExists("tar", "sudo apt install tar");
-
-console.log(fanalSize);
-console.log(util.getStoreDirPath());
-console.log(util.getBasePath());
-const df = new DiskFree("/mnt");
-await df.load();
-util.checkBackupStoreSize(df, fanalSize);
+await _a();
