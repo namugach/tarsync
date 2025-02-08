@@ -21,19 +21,6 @@ if(TEST_OFF) {
   logger.choiceWirte();
 }
 
-async function getFreeSpaceGB(store_dir_path: string): Promise<number> {
-  let res: string = await $$('df', "-BG", "--output=avail", store_dir_path);
-  res = res.split("\n")[1];
-  res = res.replace("G", "");
-  return parseInt(res, 10);
-}
-
-async function checkStoreSpace(minSpaceGB:number, store_dir_path:string) {
-  if(minSpaceGB < await getFreeSpaceGB(store_dir_path)) {
-    console.error(`⚠️ 저장 공간이 부족합니다. 최소 ${minSpaceGB}GB 이상 필요합니다.`);
-    Deno.exit(1);
-  }
-}
 
 
 
@@ -48,13 +35,8 @@ await util.ensureCommandExists("rsync", "sudo apt install rsync");
 await util.ensureCommandExists("tar", "sudo apt install tar");
 
 console.log(fanalSize);
-
-
-
 console.log(util.getStoreDirPath());
 console.log(util.getBasePath());
-// console.log(await util.getDiskFreeWithPathKb(util.getStoreDirPath()));
-
 const df = new DiskFree("/mnt");
 await df.load();
-console.log(df);
+util.checkBackupStoreSize(df, fanalSize);

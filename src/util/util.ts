@@ -1,27 +1,6 @@
 import { config } from "../../config.ts";
 import DiskFree from "./DiskFree.ts";
 
-/**
- * 디스크 정보를 나타내는 인터페이스입니다.
- */
-interface DiskInfo {
-  /**
-   * 디스크 장치(파티션)의 이름 또는 경로를 나타냅니다.
-   * 예: "/dev/sda1", "/dev/nvme0n1p1"
-   * 
-   * 이 값은 `df` 명령어 또는 유사한 도구를 통해 확인할 수 있는 디스크 장치 식별자입니다.
-   */
-  device: string;
-
-  /**
-   * 디스크가 마운트된 경로를 나타냅니다.
-   * 예: "/", "/mnt/data", "/home"
-   * 
-   * 이 값은 파일 시스템에서 해당 디스크가 사용 중인 위치를 나타냅니다.
-   */
-  mount: string;
-}
-
 
 
 const util = {
@@ -32,7 +11,7 @@ const util = {
       stdout: "inherit",
       stderr: "inherit",
     });
-    
+
     const process = command.spawn();
     await process.output(); // 프로세스가 종료될 때까지 기다림
   },
@@ -109,12 +88,12 @@ const util = {
   },
 
   convertSize(size: number): string {
-    if (size >= 1024 * 1024 * 1024) {
-      return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    } else if (size >= 1024 * 1024) {
-      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    if (size >= 1024 * 1024) {
+      return `${(size / (1024 * 1024)).toFixed(2)} GB`;
     } else if (size >= 1024) {
-      return `${(size / 1024).toFixed(2)} KB`;
+      return `${(size / 1024).toFixed(2)} MB`;
+    } else if (size) {
+      return `${(size).toFixed(2)} KB`;
     } else {
       return `${size} Bytes`;
     }
@@ -139,7 +118,7 @@ const util = {
     await df.load(); // 디스크 정보 로드
     return df; // 초기화된 DiskFree 인스턴스 반환
   },
-  
+
   /**
    * 주어진 경로가 속한 디스크의 사용 중인 크기(KB 단위)를 반환합니다.
    * 
@@ -208,7 +187,7 @@ const util = {
 
   /**
    * 특정 디스크의 전체 사용량에서 제외 경로들의 크기를 빼서 최종 사용량을 계산합니다.
-   * 
+   * @todo 제외된 용량도 추가하기
    * @param totalUsedKb - 디스크의 초기 전체 사용량(KB 단위)
    * @returns 제외 경로들을 고려한 최종 사용량(KB 단위)을 반환합니다.
    */
@@ -237,7 +216,7 @@ const util = {
           // 제외 경로의 크기를 전체 사용량에서 차감합니다.
           res -= excludedSizeKb;
           console.log(
-            `제외 경로 '${path}'의 크기: ${this.convertSize(excludedSizeKb * 1024)}`
+            `제외 경로 '${path}'의 크기: ${this.convertSize(excludedSizeKb)}`
           );
         } else {
           console.log(`제외 경로 '${path}'는 실제 디스크 공간을 차지하지 않습니다.`);
@@ -254,12 +233,41 @@ const util = {
       console.error("오류: 최종 사용량이 음수입니다. 제외 경로들의 크기 합계가 전체 사용량보다 큽니다.");
     } else {
       // 최종 사용량을 출력합니다.
-      console.log(`전체 사용량 (${diskinfo.mount}): ${this.convertSize(totalUsedKb * 1024)}`);
-      console.log(`최종 사용량 (제외 경로 제거 후): ${this.convertSize(res * 1024)}`);
+      console.log(`전체 사용량 (${diskinfo.mount}): ${this.convertSize(totalUsedKb)}`);
+      console.log(`최종 사용량 (제외 경로 제거 후): ${this.convertSize(res)}`);
     }
 
     // 최종 사용량을 반환합니다.
     return res;
+  },
+
+  /**
+   * 주어진 디스크의 사용 가능한 공간이 백업 크기 요구사항을 충족하는지 확인합니다.
+   * 
+   * 이 함수는 `DiskFree` 인스턴스에서 제공하는 사용 가능한 디스크 공간(`available`)과 
+   * 필요한 백업 크기(`backupSize`)를 비교하여 저장 공간이 충분한지 검사합니다.
+   * 
+   * ### 동작:
+   * 1. `diskFree.available` 값이 `backupSize`보다 작은 경우:
+   *    - 오류 메시지를 출력하고 프로그램을 종료합니다.
+   *    - 종료 코드는 `1`이며, 사용자에게 저장 공간 부족 경고를 제공합니다.
+   * 2. 충분한 공간이 있는 경우:
+   *    - 아무 작업도 수행하지 않습니다.
+   * 
+   * @param diskFree - 디스크 정보를 포함하는 `DiskFree` 클래스의 인스턴스입니다.
+   *                   이 인스턴스는 `load()` 메서드를 통해 초기화되어야 합니다.
+   * @param backupSize - 백업에 필요한 최소 디스크 공간(KB 단위)입니다.
+   *                     이 값은 정수여야 하며, KB 단위로 계산됩니다.
+   * 
+   * @throws 저장 공간이 부족한 경우 콘솔에 오류 메시지를 출력하고 프로그램을 종료합니다.
+   *         종료 코드는 `1`입니다.
+   */
+  checkBackupStoreSize(diskFree: DiskFree, backupSize: number): void {
+    if (diskFree.available < backupSize) {
+      console.error(`⚠️  저장 공간이 부족합니다. 최소 ${util.convertSize(backupSize)} 이상 필요합니다.`);
+      console.error(diskFree.showAll());
+      Deno.exit(1); // 저장 공간 부족으로 인해 프로그램 종료
+    }
   }
 }
 

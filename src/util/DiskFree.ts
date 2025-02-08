@@ -70,7 +70,7 @@ export default class DiskFree {
    * 
    * @returns 디스크 정보를 사람이 읽기 쉬운 형식으로 반환합니다.
    */
-  toString(): string {
-    return `디스크 장치: ${this.device}\n마운트 지점: ${this.mount}\n총 용량: ${this.total}KB\n사용 중: ${this.used}KB\n사용 가능: ${this.available}KB\n사용률: ${this.getUsagePercentage()}%`;
+  showAll(): string {
+    return `🔳 디스크 장치: ${this.device}\n🔳 마운트 지점: ${this.mount}\n🔳 총 용량: ${util.convertSize(this.total)}\n🔳 사용 중: ${util.convertSize(this.used)}\n🔳 사용 가능: ${util.convertSize(this.available)}\n🔳 사용률: ${this.getUsagePercentage()}%`;
   }
 }
