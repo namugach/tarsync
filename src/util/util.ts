@@ -88,16 +88,17 @@ const util = {
   },
 
   convertSize(size: number): string {
-    if (size >= 1024 * 1024) {
-      return `${(size / (1024 * 1024)).toFixed(2)} GB`;
-    } else if (size >= 1024) {
-      return `${(size / 1024).toFixed(2)} MB`;
-    } else if (size) {
-      return `${(size).toFixed(2)} KB`;
+    if (size >= 1024 * 1024 * 1024) {
+      return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    } else if (size >= 1024 * 1024) {
+      return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+    } else if (size >= 1024) { // 올바른 KB 체크
+      return `${(size / 1024).toFixed(2)} KB`;
     } else {
       return `${size} Bytes`;
     }
   },
+  
 
 
   /**
@@ -125,10 +126,10 @@ const util = {
    * @param path - 확인할 파일 또는 디렉토리의 경로
    * @returns 사용 중인 디스크 크기(KB 단위)를 숫자로 반환합니다.
    */
-  async getDiskFreeWithPathKb(path: string): Promise<number> {
+  async getDiskFreeWithPathByte(path: string): Promise<number> {
     // `df --output=used` 명령어를 실행하여 경로가 속한 디스크의 사용 중인 크기를 확인합니다.
     // `tail -n 1`을 사용하여 마지막 줄만 추출하고, parseInt()로 정수로 변환합니다.
-    return parseInt(await this.$$(`df --output=used "${path}" | tail -n 1`), 10);
+    return parseInt(await this.$$(`df --output=used "${path}" | tail -n 1`), 10) * 1024;
   },
 
   /**
@@ -137,10 +138,10 @@ const util = {
    * @param path - 확인할 파일 또는 디렉토리의 경로
    * @returns 해당 경로의 디스크 사용량(KB 단위)을 숫자로 반환합니다.
    */
-  async getDiskUsageWithPathKb(path: string): Promise<number> {
+  async getDiskUsageWithPathByte(path: string): Promise<number> {
     // `du -sk --one-file-system` 명령어를 실행하여 경로의 디스크 사용량을 확인합니다.
     // `awk '{print $1}'`을 사용하여 첫 번째 열(크기)만 추출하고, parseInt()로 정수로 변환합니다.
-    return parseInt(await this.$$(`du -sk --one-file-system "${path}" 2>/dev/null | awk '{print $1}'`), 10);
+    return parseInt(await this.$$(`du -sk --one-file-system "${path}" 2>/dev/null | awk '{print $1}'`), 10) * 1024;
   },
 
 
@@ -188,11 +189,11 @@ const util = {
   /**
    * 특정 디스크의 전체 사용량에서 제외 경로들의 크기를 빼서 최종 사용량을 계산합니다.
    * @todo 제외된 용량도 추가하기
-   * @param totalUsedKb - 디스크의 초기 전체 사용량(KB 단위)
+   * @param totalUsedByte - 디스크의 초기 전체 사용량(KB 단위)
    * @returns 제외 경로들을 고려한 최종 사용량(KB 단위)을 반환합니다.
    */
-  async calculateFinalDiskUsage(diskinfo: DiskFree, totalUsedKb: number): Promise<number> {
-    let res = totalUsedKb; // 초기 사용량을 저장합니다.
+  async calculateFinalDiskUsage(diskinfo: DiskFree, totalUsedByte: number): Promise<number> {
+    let res = totalUsedByte; // 초기 사용량을 저장합니다.
 
     // 제외 경로 목록을 순회하며 각 경로의 유효성과 크기를 확인합니다.
     for (const path of util.getExcludeList()) {
@@ -210,13 +211,13 @@ const util = {
         }
 
         // 3. 제외 경로의 크기 계산
-        const excludedSizeKb = await this.getDiskUsageWithPathKb(path);
+        const excludedSizeByte = await this.getDiskUsageWithPathByte(path);
 
-        if (excludedSizeKb > 0) {
+        if (excludedSizeByte > 0) {
           // 제외 경로의 크기를 전체 사용량에서 차감합니다.
-          res -= excludedSizeKb;
+          res -= excludedSizeByte;
           console.log(
-            `제외 경로 '${path}'의 크기: ${this.convertSize(excludedSizeKb)}`
+            `제외 경로 '${path}'의 크기: ${this.convertSize(excludedSizeByte)}`
           );
         } else {
           console.log(`제외 경로 '${path}'는 실제 디스크 공간을 차지하지 않습니다.`);
@@ -233,7 +234,7 @@ const util = {
       console.error("오류: 최종 사용량이 음수입니다. 제외 경로들의 크기 합계가 전체 사용량보다 큽니다.");
     } else {
       // 최종 사용량을 출력합니다.
-      console.log(`전체 사용량 (${diskinfo.mount}): ${this.convertSize(totalUsedKb)}`);
+      console.log(`전체 사용량 (${diskinfo.mount}): ${this.convertSize(totalUsedByte)}`);
       console.log(`최종 사용량 (제외 경로 제거 후): ${this.convertSize(res)}`);
     }
 

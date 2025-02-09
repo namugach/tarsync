@@ -32,7 +32,7 @@ async function getFiles(storeDir: string): Promise<string[]> {
     }
 
     // 전체 파일 목록 가져오기 (공백 포함 파일명 대응)
-    const rawFiles = await util.$$(
+    const rawFiles = await $$(
       `ls -lthr "${storeDir}" | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}'`
     );
 
@@ -112,17 +112,88 @@ function paginateFiles(files: string[], pageSize: number, pageNum: number): Pagi
   return res;
 }
 
+
+/**
+ * 백업 파일 정보를 출력하는 함수
+ * 
+ * @param pageSize - 한 페이지에 표시할 항목 수
+ * @param pageNum - 현재 페이지 번호 (양수: 정상 페이지, 음수: 뒤에서 계산)
+ * @param selectList - 선택된 디렉토리 인덱스 (1부터 시작, 음수일 경우 뒤에서부터 계산)
+ * @returns 파일 정보와 페이지네이션 정보를 포함한 결과 문자열
+ */
+async function printBackups(
+  pageSize: number,
+  pageNum: number,
+  selectList: number // 1부터 시작, 음수일 경우 뒤에서부터 계산
+): Promise<string> {
+  const STORE_DIR = util.getStoreDirPath(); // 백업 디렉토리 경로
+  const files = await getFiles(STORE_DIR); // 파일 목록 가져오기
+  const paginationResult = paginateFiles(files, pageSize, pageNum); // 파일 배열을 페이지 단위로 나누기
+
+  let res = ""; // 결과 문자열
+  let totalSize = 0; // 선택된 디렉토리의 총 용량
+
+  // 현재 페이지의 파일 목록을 순회합니다.
+  for (let i = 0; i < paginationResult.items.length; i++) {
+    const file = paginationResult.items[i];
+    const fileName = file.split(" ")[3]; // 파일 이름 추출 (awk '{print $4}'와 동일)
+    const backupDir = `${STORE_DIR}/${fileName}`; // 백업 디렉토리 경로
+
+    // 디렉토리 크기 계산
+    let size = "0B"; // 기본값: 0B
+    let sizeBytes = 0;
+    if (await util.isPathExists(backupDir)) {
+      size = await util.$$(`du -sh "${backupDir}" | awk '{print $1}'`); // 인간이 읽기 쉬운 크기
+      sizeBytes = parseInt(await util.$$(`du -sb "${backupDir}" | awk '{print $1}'`), 10); // 바이트 단위 크기
+    }
+
+    // log.md 파일 존재 여부 확인
+    const logIcon = await util.isPathExists(`${backupDir}/log.md`) ? "📖" : "❌";
+
+    // 선택된 디렉토리 인덱스 처리
+    const icon =
+      selectList < 0 && i === paginationResult.items.length + selectList // 음수일 경우 뒤에서부터 계산
+        ? "✅"
+        : selectList > 0 && i === selectList - 1 // 1부터 시작하는 인덱스 처리
+        ? "✅"
+        : "⬜️";
+
+    // 총 용량 계산
+    totalSize += sizeBytes;
+
+    // 결과 문자열에 추가
+    res += `${icon} ${logIcon} ${size} ${file} - ${i + 1}\n`;
+  }
+
+  res += "\n";
+
+  // 선택된 디렉토리의 총 용량 출력
+  const totalSizeHuman = util.convertSize(totalSize); // 인간이 읽기 쉬운 형식으로 변환
+  res += `🔳 total: ${(await util.$$(`du -sh "${STORE_DIR}" | awk '{print $1}'`)).trim()}B\n`;
+  res += `🔳 page total: ${totalSizeHuman}\n`;
+  console.log(totalSize);
+
+  // 페이지네이션 정보 추가
+  const totalPages = paginationResult.totalPages;
+  res += `🔳 Page ${paginationResult.pageNum} / ${totalPages} (Total: ${files.length} files)\n`;
+
+  return res;
+}
 const STORE_DIR_PATH = util.getStoreDirPath();
 
 isStoreDir(STORE_DIR_PATH);
 
-const STORE_DIR = "/mnt/backup/tarsync/store";
+const STORE_DIR = util.getStoreDirPath();
 const PAGE_SIZE = 5; // 한 페이지당 출력할 파일 개수 (고정값: 5)
 const PAGE_NUM = -1; // 현재 페이지 번호 (음수면 뒤에서부터)
 const files = await getFiles(STORE_DIR);
 
-console.log(paginateFiles(files, 5, 1));
-console.log(paginateFiles(files, 5, -1));
+// console.log(paginateFiles(files, 5, 1));
+// console.log(paginateFiles(files, 5, -1));
+
+// Example usage
+const result = await printBackups(PAGE_SIZE, PAGE_NUM, 3);
+console.log(result);
 
 
 export default class BackupList {

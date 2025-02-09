@@ -12,9 +12,9 @@ async function _a() {
   const BACKUP_FILE_PATH = `${WORK_DIR_PATH}/tarsync.tar.gz`;
   const logger = new Logger(WORK_DIR_PATH);
   const diskfree = await util.getDiskFree(BACKUP_DISK_PATH);
-  const rootTotalUsedKb = await util.getDiskFreeWithPathKb(diskfree.mount);
+  const rootTotalUsedByte = await util.getDiskFreeWithPathByte(diskfree.mount);
   const fanalSize = await util.calculateFinalDiskUsage(diskfree, 
-    rootTotalUsedKb);
+    rootTotalUsedByte);
   const df = new DiskFree(util.getStoreDirPath());
   await df.load();
   

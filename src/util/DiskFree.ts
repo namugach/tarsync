@@ -16,9 +16,9 @@ export default class DiskFree {
   private path: string; // 디스크 정보를 조회할 경로
   public device: string = ""; // 디스크 장치 이름 (예: "/dev/sda1")
   public mount: string = ""; // 마운트 지점 (예: "/")
-  public total: number = 0; // 총 용량(KB 단위)
-  public used: number = 0; // 사용 중인 용량(KB 단위)
-  public available: number = 0; // 사용 가능한 용량(KB 단위)
+  public total: number = 0; // 총 용량(Byte 단위)
+  public used: number = 0; // 사용 중인 용량(Byte 단위)
+  public available: number = 0; // 사용 가능한 용량(Byte 단위)
 
   /**
    * DiskFree 클래스의 인스턴스를 생성합니다.
@@ -41,13 +41,13 @@ export default class DiskFree {
       // `df` 명령어를 실행하여 디스크 정보를 가져옵니다.
       const result = await util.$$(`df -k --output=source,fstype,size,used,avail,target "${this.path}" | tail -n 1`);
       // 결과 문자열을 공백으로 분리하여 배열로 변환합니다.
-      const [device, _, totalKb, usedKb, availKb, mount] = result.trim().split(/\s+/);
+      const [device, _, totalByte, usedByte, availByte, mount] = result.trim().split(/\s+/);
       // 속성 초기화
       this.device = device || ""; // 디스크 장치 이름
       this.mount = mount || ""; // 마운트 지점
-      this.total = parseInt(totalKb, 10) || 0; // 총 용량(KB 단위)
-      this.used = parseInt(usedKb, 10) || 0; // 사용 중인 용량(KB 단위)
-      this.available = parseInt(availKb, 10) || 0; // 사용 가능한 용량(KB 단위)
+      this.total = parseInt(totalByte, 10) * 1024 || 0; // 총 용량(Byte 단위)
+      this.used = parseInt(usedByte, 10) * 1024 || 0; // 사용 중인 용량(Byte 단위)
+      this.available = parseInt(availByte, 10) * 1024 || 0; // 사용 가능한 용량(Byte 단위)
     } catch (error) {
       // 오류 처리: 디스크 정보를 로드하는 중 오류가 발생한 경우
       console.error("디스크 정보를 로드하는 중 오류 발생:", (error as Error).message);
