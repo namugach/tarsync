@@ -1,6 +1,7 @@
 import util from "./src/util/util.ts";
 import Logger from "./src/compo/Logger.ts";
 import DiskFree from "./src/util/DiskFree.ts";
+import BackupList from "./src/compo/BackupList.ts";
 
 const { $, $$ } = util;
   
@@ -40,4 +41,6 @@ async function _a() {
   await util.backup(BACKUP_DISK_PATH, BACKUP_FILE_PATH, util.getExclude());
 }
 
-await _a();
+// await _a();
+
+new BackupList();
