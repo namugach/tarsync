@@ -2,7 +2,6 @@ import util from "./src/util/util.ts";
 import Logger from "./src/compo/Logger.ts";
 import DiskFree from "./src/util/DiskFree.ts";
 import BackupManager from "./src/compo/BackupManager.ts";
-import { urlToHttpOptions } from "node:url";
 
 
 async function _warp() {
