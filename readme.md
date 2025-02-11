@@ -72,6 +72,14 @@ my@ubuntu:/mnt/backup/tarsync$ ./run.sh
 🔳 total: 40GB
 🔳 page total: 6.32 GB
 🔳 Page 9 / 9 (Total: 45 files)
+
+📜 백업 로그 내용 (2025_02_11_AM_07_26_16/log.md):
+-----------------------------------
+# Backup Log
+- Date: 2025-02-09
+- Time: 05:08:46
+- Status: Success
+-----------------------------------
 ```
 
 ### 추가 정보

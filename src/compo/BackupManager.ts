@@ -127,6 +127,25 @@ class BackupManager {
   }
 
   /**
+   * 선택된 디렉토리의 log.md 파일 내용을 출력합니다.
+   * 
+   * @param backupDir - 백업 디렉토리 경로
+   * @param fileName - 파일 이름
+   * @returns log.md 파일의 내용 또는 경고 메시지를 포함한 문자열
+   */
+  async #printLog(backupDir: string, fileName: string): Promise<string> {
+    const logFilePath = `${backupDir}/log.md`;
+    if (await util.isPathExists(logFilePath)) {
+      const logContent = await util.$$(`cat "${logFilePath}"`);
+      return `\n📜 백업 로그 내용 (${fileName}/log.md):\n` +
+            "-----------------------------------\n" +
+            logContent.trim() + // 불필요한 공백 제거
+            "\n-----------------------------------\n";
+    } else {
+      return `\n⚠️  선택된 디렉토리에 log.md 파일이 없습니다: ${fileName}\n`;
+    }
+  }
+  /**
    * 백업 파일 정보를 출력하는 함수
    * 
    * @param pageSize - 한 페이지에 표시할 항목 수
@@ -145,6 +164,8 @@ class BackupManager {
 
     let res = ""; // 결과 문자열
     let totalSize = 0; // 선택된 디렉토리의 총 용량
+    let selectedBackupDir = "";
+    let selectedFileName = "";
 
     // 현재 페이지의 시작 인덱스 계산
     const startIndex = (paginationResult.pageNum - 1) * pageSize + 1;
@@ -180,6 +201,12 @@ class BackupManager {
       // 결과 문자열에 추가
       const currentIndex = startIndex + i; // 현재 파일의 실제 인덱스
       res += `${this.#padIndexToReferenceLength(filesLength, currentIndex)}. ${icon} ${logIcon} ${size} ${file}\n`;
+
+      // 선택된 디렉토리의 log.md 파일 내용 출력 하기 위한 변수에 선언
+      if ((selectList > 0 && i === selectList - 1) || (selectList < 0 && i === paginationResult.items.length + selectList)) {
+        selectedBackupDir = backupDir;
+        selectedFileName = fileName;
+      }
     }
 
     res += "\n";
@@ -191,7 +218,7 @@ class BackupManager {
     // 페이지네이션 정보 추가
     const totalPages = paginationResult.totalPages;
     res += `🔳 Page ${paginationResult.pageNum} / ${totalPages} (Total: ${files.length} files)\n`;
-
+    res += await this.#printLog(selectedBackupDir, selectedFileName);
     return res;
   }
 }
