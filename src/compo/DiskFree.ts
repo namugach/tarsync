@@ -1,4 +1,4 @@
-import util from "./util.ts";
+import util from "../util/util.ts";
 
 /**
  * DiskFree 클래스는 특정 경로에 대한 디스크 정보를 제공합니다.

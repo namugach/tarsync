@@ -15,12 +15,12 @@ class Logger {
     const isWirte = prompt("로그를 기록하시겠습니까? (Y/n): ")?.trim() || "Y";
     this.#isWirte = this.#setIsWirte(isWirte);
   }
-  async write() {
-    await $("vi", `${this.#workDirName}/log.md`);
+  async write(workDirName: string = this.#workDirName) {
+    await $("vi", `${workDirName}/log.md`);
   }
-  async choiceWirte() {
+  async choiceWirte(workDirName: string) {
     this.selectChoice()
-    if(this.#isWirte) await this.write();
+    if(this.#isWirte) await this.write(workDirName);
   }
 }
 
