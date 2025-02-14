@@ -2,6 +2,7 @@ import util from "./util/util.ts";
 import Logger from "./compo/Logger.ts";
 import DiskFree from "./compo/DiskFree.ts";
 import ArchiveManager from "./compo/ArchiveManager.ts";
+import Meta from "./type/Meta.ts";
 
 class Tarsync {
   private BACKUP_DISK_PATH: string;
@@ -75,37 +76,44 @@ class Tarsync {
   }
   
 
-  async #getMetaInfo(size: number): Promise<{
-    size: number,
-    exclude: string[],
-    created: string
-  }> {
+  async #getMetaInfo(size: number): Promise<Meta> {
     return {
       size,
       exclude: util.getExcludeList(),
       created: await util.getDate()
     }
   }
+
   async #createMetaData(size: number) {
     const meta = await this.#getMetaInfo(size);
     const fileContent = `export const meta = ${JSON.stringify(meta, null, 2)};\n`;
     await Deno.writeTextFile(`${this.workDirPath}/meta.ts`, fileContent);
   }
+
+  /**
+   * 저장소 용량 체크
+   * @param targetSize 저장할 것의 용량 Byte
+   */
+  async #checkDiskSize(targetSize: number) {
+    // 작업 디렉토리 및 백업 파일 경로 초기화
+    await this.#initializePaths();
+
+    // 로거 및 디스크 용량 정보 초기화
+    const df = new DiskFree(this.STORE_DIR_PATH);
+    await df.load();
+
+    // 저장소 용량 확인
+    this.#checkBackupStoreSize(df, targetSize);
+  }
+
   /**
    * 백업 작업을 수행합니다.
    */
   async backup(): Promise<void> {
     try {
-      // 작업 디렉토리 및 백업 파일 경로 초기화
-      await this.#initializePaths();
-
-      // 로거 및 디스크 용량 정보 초기화
-      const finalSize = await this.#calculateDiskUsage();
-      const df = new DiskFree(this.STORE_DIR_PATH);
-      await df.load();
-
-      // 저장소 용량 확인
-      this.#checkBackupStoreSize(df, finalSize);
+            const finalSize = await this.#calculateDiskUsage();
+      
+            this.#checkDiskSize(finalSize);
 
       // 필수 도구 유효성 검사
       await this.#validateRequiredTools();

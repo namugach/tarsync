@@ -61,8 +61,9 @@ const util = {
       ...(config.exclude.custom || [])
     ]
   },
-  getExclude(): string {
-    return this.getExcludeList()
+  getExclude(list: string[] = []): string {
+    list.length === 0 ? this.getExcludeList(): list;
+    return list
       .map(elem => `--exclude=${elem}`)
       .join(" ");
   },
