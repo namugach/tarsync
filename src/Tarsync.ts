@@ -8,7 +8,7 @@ class Tarsync {
   private STORE_DIR_PATH: string;
   private workDirPath: string;
   private ArchivePath: string;
-  private logger: Logger
+  private logger: Logger;
 
   constructor() {
     // 경로 및 설정 초기화
@@ -45,9 +45,9 @@ class Tarsync {
     return await util.calculateFinalDiskUsage(diskfree, rootTotalUsedByte);
   }
 
-    /**
+  /**
    * 주어진 디스크의 사용 가능한 공간이 백업 크기 요구사항을 충족하는지 확인합니다.
-   * 
+* 
    * 이 함수는 `DiskFree` 인스턴스에서 제공하는 사용 가능한 디스크 공간(`available`)과 
    * 필요한 백업 크기(`backupSize`)를 비교하여 저장 공간이 충분한지 검사합니다.
    * 
@@ -73,6 +73,24 @@ class Tarsync {
       Deno.exit(1); // 저장 공간 부족으로 인해 프로그램 종료
     }
   }
+  
+
+  async #getMetaInfo(size: number): Promise<{
+    size: number,
+    exclude: string[],
+    created: string
+  }> {
+    return {
+      size,
+      exclude: util.getExcludeList(),
+      created: await util.getDate()
+    }
+  }
+  async #createMetaData(size: number) {
+    const meta = await this.#getMetaInfo(size);
+    const fileContent = `export const meta = ${JSON.stringify(meta, null, 2)};\n`;
+    await Deno.writeTextFile(`${this.workDirPath}/meta.ts`, fileContent);
+  }
   /**
    * 백업 작업을 수행합니다.
    */
@@ -96,6 +114,11 @@ class Tarsync {
       // 작업 디렉토리 및 저장소 디렉토리 생성
       await util.createStoreDir();
       await util.mkdir(this.workDirPath);
+
+      /**
+       * meta data 파일 작성
+       */
+      await this.#createMetaData(finalSize);
 
       // log.md 파일 작성
       await this.logger.choiceWirte(this.workDirPath);
