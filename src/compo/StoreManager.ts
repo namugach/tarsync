@@ -11,7 +11,7 @@ type PaginationResult = {
 /**
  * 백업 디렉토리 및 파일 관리를 담당하는 클래스입니다.
  */
-class ArchiveManager {
+class StoreManager {
   private STORE_DIR: string;
 
   /**
@@ -223,4 +223,4 @@ class ArchiveManager {
   }
 }
 
-export default ArchiveManager;
+export default StoreManager;

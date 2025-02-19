@@ -1,14 +1,14 @@
 import util from "./util/util.ts";
 import Logger from "./compo/Logger.ts";
 import DiskFree from "./compo/DiskFree.ts";
-import ArchiveManager from "./compo/ArchiveManager.ts";
+import StoreManager from "./compo/StoreManager.ts";
 import Meta from "./type/Meta.ts";
 
 class Tarsync {
   private BACKUP_DISK_PATH: string;
   private STORE_DIR_PATH: string;
   private workDirPath: string;
-  private ArchivePath: string;
+  private StorePath: string;
   private logger: Logger;
 
   constructor() {
@@ -16,7 +16,7 @@ class Tarsync {
     this.BACKUP_DISK_PATH = "/";
     this.STORE_DIR_PATH = util.getStoreDirPath();
     this.workDirPath = ""; // 작업 디렉토리는 비동기로 초기화
-    this.ArchivePath = ""; // 백업 파일 경로는 작업 디렉토리 초기화 후 설정
+    this.StorePath = ""; // 백업 파일 경로는 작업 디렉토리 초기화 후 설정
     this.logger = new Logger(this.workDirPath);
   }
 
@@ -34,7 +34,7 @@ class Tarsync {
    */
   async #initializePaths(): Promise<void> {
     this.workDirPath = await util.getWorkDirPath();
-    this.ArchivePath = `${this.workDirPath}/tarsync.tar.gz`;
+    this.StorePath = `${this.workDirPath}/tarsync.tar.gz`;
   }
 
   /**
@@ -133,13 +133,13 @@ class Tarsync {
 
       // 백업 시작 메시지 출력
       console.log("📂 백업을 시작합니다.");
-      console.log(`📌 저장 경로: ${this.ArchivePath}`);
+      console.log(`📌 저장 경로: ${this.StorePath}`);
 
       // 백업 실행
-      await util.createTarFile(this.BACKUP_DISK_PATH, this.ArchivePath, util.getExclude());
+      await util.createTarFile(this.BACKUP_DISK_PATH, this.StorePath, util.getExclude());
 
       // 백업 결과 출력
-      const bm = new ArchiveManager(this.STORE_DIR_PATH);
+      const bm = new StoreManager(this.STORE_DIR_PATH);
       console.log(await bm.printBackups(5, -1, -1));
     } catch (error) {
       console.error("백업 중 오류 발생:", (error as Error).message);
