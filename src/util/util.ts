@@ -62,7 +62,7 @@ const util = {
     ]
   },
   getExclude(list: string[] = []): string {
-    list.length === 0 ? this.getExcludeList(): list;
+    list = list.length === 0 ? this.getExcludeList(): list;
     return list
       .map(elem => `--exclude=${elem}`)
       .join(" ");
