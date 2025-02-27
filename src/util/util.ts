@@ -47,8 +47,16 @@ const util = {
     return `${this.getBasePath()}store`;
   },
 
-  async getWorkDirPath(): Promise<string> {
+  getReStoreDirPath(): string {
+    return `${this.getBasePath()}restore`;
+  },
+
+  async getStoreWorkDirPath(): Promise<string> {
     return `${this.getStoreDirPath()}/${await this.getDate()}`;
+  },
+
+  async getReStoreWorkDirPath(sotrePath: string): Promise<string> {
+    return `${this.getReStoreDirPath()}/${await this.getDate()}__to__${sotrePath}`;
   },
 
   getTarFile(workDir: string): string {
@@ -76,6 +84,10 @@ const util = {
     await this.mkdir(this.getStoreDirPath());
   },
 
+  async createReStoreDir(): Promise<void> {
+    await this.mkdir(this.getReStoreDirPath());
+  },
+
 
   async getEditorList(): Promise<string> {
     return await this.$$("update-alternatives", "--display", "editor");
@@ -88,7 +100,13 @@ const util = {
     }
   },
 
-  convertSize(size: number): string {
+  convertStringNunber(stringNumber: string) {
+    return parseInt(stringNumber.split(",").join(""));
+  },
+
+  convertSize(size: number | string): string {
+    if (typeof size ==="string") size = this.convertStringNunber(size);
+
     if (size >= 1024 * 1024 * 1024) {
       return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
     } else if (size >= 1024 * 1024) {
@@ -276,6 +294,75 @@ const util = {
       // 오류 처리: 백업 중 오류가 발생한 경우
       console.error("묶는 중 오류 발생:", (error as Error).message);
       throw error; // 에러를 다시 던져서 호출자에게 전달합니다.
+    }
+  },
+
+
+  parseRsyncOutput(output: string) {
+    const lines = output.split("\n");
+    let temp:RegExpMatchArray | null; 
+    let totalSize: string | number = "";
+    let sentBytes: string = "";
+    let receivedBytes: string = "";
+    let speedup: string = "";
+    let printMesage = "";
+
+
+    for (const line of lines) {
+      if (line.includes("total size is")) {
+        temp = line.match(/total size is ([\d,]+)/);
+        totalSize = temp ? temp[1] : ""
+        totalSize = util.convertSize(totalSize);
+      }
+      if (line.includes("sent")) {
+        const sentMatch = line.match(/sent ([\d,]+) bytes/);
+        const receivedMatch = line.match(/received ([\d,]+) bytes/);
+        if (sentMatch) {
+          sentBytes = this.convertSize(sentMatch[1])
+        }
+        if (receivedMatch) {
+          receivedBytes = this.convertSize(receivedMatch[1]);
+        }
+      }
+      if (line.includes("speedup")) {
+        temp = line.match(/speedup is ([\d.]+)/);
+        speedup = temp ? temp[1] : "";
+      }
+    }
+  
+    printMesage += "✅ 파일이 정상적으로 분석됨!\n"
+    printMesage += `✅ 총 복구 데이터 크기: ${totalSize}\n`
+    printMesage += `✅ 전송된 데이터: 약 ${sentBytes}\n`
+    printMesage += `✅ 수신된 데이터: 약 ${receivedBytes}\n`
+    printMesage += `✅ speedup ${speedup} → rsync가 최적화된 전송을 수행하고 있음\n`
+    console.log(printMesage);
+  },
+  async runShellWithProgress(shellCommand: string, workName:string=""): Promise<string> {
+    console.log(`♻️  ${workName} 작업을 시작합니다.`);
+      
+    let frameIndex = 0;
+    let dotCount = 0;
+    const frames = ["⏳", "🔄", "⌛", "🔃"]; // 회전 애니메이션 효과
+  
+    // 진행 메시지를 같은 줄에서 업데이트하는 인터벌 실행
+    const progressIndicator = setInterval(() => {
+      frameIndex = (frameIndex + 1) % frames.length;
+      dotCount = (dotCount + 1) % 6; // 0 ~ 5까지 증가 후 다시 0으로 순환
+      let dots = ".".repeat(dotCount); // 점 개수 증가
+
+      if(dotCount === 0) {
+        dots = "     ";
+      }
+  
+      Deno.stdout.writeSync(new TextEncoder().encode(`\r${frames[frameIndex]} 진행 중${dots}`));
+    }, 400); // 0.4초마다 업데이트
+  
+    try {
+      // rsync 실행
+      return await this.$$(`${shellCommand}`);
+    } finally {
+      clearInterval(progressIndicator); // 인터벌 정리
+      console.log(`\r✅ ${workName} 작업 완료!     `); // 기존 진행 메시지를 덮어씌우기 위해 공백 추가
     }
   }
 }
