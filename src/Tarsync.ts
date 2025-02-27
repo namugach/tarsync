@@ -3,67 +3,8 @@ import Logger from "./compo/Logger.ts";
 import DiskFree from "./compo/DiskFree.ts";
 import StoreManager from "./compo/StoreManager.ts";
 import Meta from "./type/Meta.ts";
-
-
-class Tar {
-  target: string;
-  tarDirPathFileName: string;
-  excludeDirs: string;
-  constructor(target: string = "", tarDirPathFileName: string = "", excludeDirs: string = "") {
-    this.target = target
-    this.tarDirPathFileName = tarDirPathFileName;
-    this.excludeDirs = excludeDirs;
-  }
-  async create(): Promise<void> {
-    try {
-      // `tar` 명령어를 실행하여 대상 경로의 데이터를 압축하고 저장합니다.
-      await util.$(`sudo tar cf - -P --one-file-system --acls --xattrs ${this.excludeDirs} ${this.target} | pv | gzip > ${this.tarDirPathFileName}`);
-    } catch (error) {
-      // 오류 처리: 백업 중 오류가 발생한 경우
-      console.error("묶는 중 오류 발생:", (error as Error).message);
-      throw error; // 에러를 다시 던져서 호출자에게 전달합니다.
-    }
-  }
-  async extract(restoreWorkDirPath: string): Promise<void> {
-    try {
-      // pv 명령어를 통해 압축 해제 진행률을 표시하고, tar 명령어로 파일을 해제합니다.
-      await util.$(`pv ${this.tarDirPathFileName}/tarsync.tar.gz | tar -xzf - -C ${restoreWorkDirPath}`);
-    } catch (error) {
-      // 오류 메시지를 로그로 출력하고, 호출자에게 예외를 다시 던집니다.
-      console.error("tar 파일 압축 해제 중 오류 발생:", (error as Error).message);
-      throw error;
-    }
-  }
-}
-
-class Rsync {
-  options: string = "-aAXv --hard-links --progress --numeric-ids";
-  exclude: string = "";
-  storeWorkPath: string = "";
-  restoreWorkDirPath: string = "";
-  #logData: string = "";
-  constructor(restoreWorkDirPath: string = "", targetPath: string = "", options:string = "") {
-    this.restoreWorkDirPath = restoreWorkDirPath;
-    this.storeWorkPath = targetPath;
-    this.options += ` ${options}`;
-  }
-  get logData(): string { return this.#logData }
-
-  async #core(name: string = "", options: string = "") {
-    const rsyncCommand = `rsync ${this.options} ${options} ${this.exclude} ${this.restoreWorkDirPath}/ ${this.storeWorkPath}`
-    const res = await util.runShellWithProgress(rsyncCommand, name);
-    util.parseRsyncOutput(res);
-    return res;
-  }
-  // 시뮬레이션 모드
-  async test() {
-    await this.#core("시뮬레이션", "--dry-run");
-  }
-
-  async start() {
-    this.#logData = await this.#core("복구");
-  }
-}
+import Tar from "./compo/Tar.ts";
+import Rsync from "./compo/Rsync.ts";
 
 class Tarsync {
   private BACKUP_DISK_PATH: string;
