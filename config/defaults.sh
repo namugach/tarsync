@@ -10,6 +10,7 @@ BACKUP_PATH="/mnt/backup"
 
 # 기본 제외 경로 목록
 EXCLUDE_DEFAULT=(
+    "/workspace"                # 개발 작업 디렉토리 (dockit 환경)
     "/swap.img"                 # 스왑 파일
     "/proc"                     # 프로세스 정보
     "/sys"                      # 시스템 정보
