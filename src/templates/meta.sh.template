@@ -1,0 +1,8 @@
+#!/bin/bash
+# tarsync 백업 메타데이터
+
+META_SIZE={{BACKUP_SIZE}}
+META_CREATED="{{CREATED_DATE}}"
+META_EXCLUDE=(
+{{EXCLUDE_PATHS}}
+) 

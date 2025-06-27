@@ -105,17 +105,25 @@ create_metadata() {
     local exclude_paths=("${@:4}")
     
     local meta_file="$work_dir/meta.sh"
+    local template_file="$PROJECT_ROOT/src/templates/meta.sh.template"
     
-    cat > "$meta_file" << EOF
-#!/bin/bash
-# tarsync 백업 메타데이터
-
-META_SIZE=$backup_size
-META_CREATED="$created_date"
-META_EXCLUDE=(
-$(printf '    "%s"\n' "${exclude_paths[@]}")
-)
-EOF
+    # 템플릿 파일 확인
+    if [[ ! -f "$template_file" ]]; then
+        log_error "메타데이터 템플릿 파일을 찾을 수 없습니다: $template_file"
+        return 1
+    fi
+    
+    # exclude_paths 배열을 템플릿 형식으로 변환
+    local exclude_formatted=""
+    for path in "${exclude_paths[@]}"; do
+        exclude_formatted+="    \"$path\"\n"
+    done
+    
+    # 템플릿 로드하고 변수 치환
+    sed -e "s/{{BACKUP_SIZE}}/$backup_size/g" \
+        -e "s/{{CREATED_DATE}}/$created_date/g" \
+        -e "s/{{EXCLUDE_PATHS}}/$exclude_formatted/g" \
+        "$template_file" > "$meta_file"
     
     chmod +x "$meta_file"
 }
