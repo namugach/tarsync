@@ -8,6 +8,7 @@
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$PROJECT_ROOT/src/utils/colors.sh"
 source "$PROJECT_ROOT/src/utils/log.sh"
+source "$PROJECT_ROOT/src/utils/version.sh"
 
 # 설치 디렉토리
 # Installation directories
@@ -84,12 +85,22 @@ install_tarsync_script() {
     cp "$PROJECT_ROOT/bin/tarsync.sh" "$INSTALL_DIR/tarsync"
     chmod +x "$INSTALL_DIR/tarsync"
     
+    # VERSION 파일도 복사
+    cp "$PROJECT_ROOT/bin/VERSION" "$INSTALL_DIR/VERSION"
+    
     update_script_paths
     
     if check_file_exists "$INSTALL_DIR/tarsync" && [ -x "$INSTALL_DIR/tarsync" ]; then
         log_info "tarsync 스크립트가 설치되었습니다: $INSTALL_DIR/tarsync"
     else
         log_error "tarsync 스크립트 설치에 실패했습니다"
+        return 1
+    fi
+    
+    if check_file_exists "$INSTALL_DIR/VERSION"; then
+        log_info "VERSION 파일이 설치되었습니다: $INSTALL_DIR/VERSION"
+    else
+        log_error "VERSION 파일 설치에 실패했습니다"
         return 1
     fi
 }
@@ -196,11 +207,15 @@ verify_installation() {
 }
 
 show_success_message() {
+    # 버전 정보 가져오기 (버전 유틸리티 사용)
+    local version=$(get_version)
+    
     echo ""
-    log_success "🎉 tarsync v1.0.0 설치 완료!"
+    log_success "🎉 tarsync v$version 설치 완료!"
     echo ""
     log_info "📍 설치 위치:"
     echo "   • 실행파일: $INSTALL_DIR/tarsync"
+    echo "   • 버전파일: $INSTALL_DIR/VERSION"
     echo "   • 라이브러리: $PROJECT_DIR"
     echo "   • Bash 자동완성: $COMPLETION_DIR/tarsync"
     echo "   • ZSH 자동완성: $ZSH_COMPLETION_DIR/_tarsync"
@@ -211,6 +226,7 @@ show_success_message() {
     echo "      source ~/.zshrc     # ZSH 사용자"
     echo "   2. tarsync 명령어 사용:"
     echo "      tarsync help                    # 도움말"
+    echo "      tarsync version                 # 버전 확인"
     echo "      tarsync backup /home/user       # 백업"
     echo "      tarsync list                    # 목록"
     echo ""

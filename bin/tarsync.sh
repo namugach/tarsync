@@ -9,18 +9,21 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # 색상 유틸리티 로드
 source "$PROJECT_ROOT/src/utils/colors.sh"
 
+# 버전 관리 유틸리티 로드
+source "$PROJECT_ROOT/src/utils/version.sh"
+
 # 모듈 경로들
 BACKUP_MODULE="$PROJECT_ROOT/src/modules/backup.sh"
 RESTORE_MODULE="$PROJECT_ROOT/src/modules/restore.sh"
 LIST_MODULE="$PROJECT_ROOT/src/modules/list.sh"
 
-# 버전 정보
-VERSION="1.0.0"
+# 프로그램 이름
 PROGRAM_NAME="tarsync"
 
 # 도움말 표시
 show_help() {
-    echo -e "${CYAN}$PROGRAM_NAME v$VERSION${NC}"
+    local version=$(get_version)
+    echo -e "${CYAN}$PROGRAM_NAME v$version${NC}"
     echo -e "${WHITE}TypeScript에서 Shell Script로 변환된 백업 도구${NC}"
     echo ""
     echo -e "${YELLOW}사용법:${NC}"
@@ -61,7 +64,8 @@ show_help() {
 
 # 버전 정보 표시
 show_version() {
-    echo -e "${CYAN}$PROGRAM_NAME v$VERSION${NC}"
+    local version=$(get_version)
+    echo -e "${CYAN}$PROGRAM_NAME v$version${NC}"
     echo -e "${WHITE}Shell Script 기반 백업 도구${NC}"
     echo ""
     echo "📦 기능:"
@@ -75,6 +79,9 @@ show_version() {
     echo "  • tar, gzip, rsync, pv, bc"
     echo ""
     echo "📍 프로젝트: TypeScript → Shell Script 변환"
+    echo ""
+    echo "Copyright (c) $(date +%Y)"
+    echo "MIT License"
 }
 
 # 모듈 존재 확인
