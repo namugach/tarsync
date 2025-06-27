@@ -40,20 +40,168 @@ create_dir_if_not_exists() {
 # ===== 의존성 체크 =====
 # ===== Dependency Check =====
 
+# OS 감지 함수
+detect_os() {
+    local os_name="$(uname -s)"
+    case "$os_name" in
+        Linux*)
+            if command -v apt >/dev/null 2>&1; then
+                echo "ubuntu"
+            elif command -v yum >/dev/null 2>&1; then
+                echo "centos"
+            elif command -v dnf >/dev/null 2>&1; then
+                echo "fedora"
+            else
+                echo "linux"
+            fi
+            ;;
+        Darwin*)
+            echo "macos"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
+# 패키지 설치 명령어 생성
+get_install_command() {
+    local os="$1"
+    local missing_tools=("${@:2}")
+    
+    case "$os" in
+        ubuntu)
+            echo "sudo apt update && sudo apt install -y ${missing_tools[*]}"
+            ;;
+        centos)
+            echo "sudo yum install -y ${missing_tools[*]}"
+            ;;
+        fedora)
+            echo "sudo dnf install -y ${missing_tools[*]}"
+            ;;
+        macos)
+            # macOS에서는 일부 도구가 기본 설치되어 있을 수 있음
+            local brew_tools=()
+            for tool in "${missing_tools[@]}"; do
+                case "$tool" in
+                    tar|gzip) continue ;; # macOS 기본 포함
+                    *) brew_tools+=("$tool") ;;
+                esac
+            done
+            if [ ${#brew_tools[@]} -gt 0 ]; then
+                echo "brew install ${brew_tools[*]}"
+            fi
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# 수동 설치 안내
+show_manual_install_guide() {
+    local missing_tools=("${@}")
+    
+    echo ""
+    log_info "📋 수동 설치 안내:"
+    echo "   Ubuntu/Debian: sudo apt install ${missing_tools[*]}"
+    echo "   CentOS/RHEL:   sudo yum install ${missing_tools[*]}"
+    echo "   Fedora:        sudo dnf install ${missing_tools[*]}"
+    echo "   macOS:         brew install ${missing_tools[*]}"
+    echo ""
+}
+
+# 자동 설치 실행
+auto_install_dependencies() {
+    local install_cmd="$1"
+    
+    log_info "의존성을 자동으로 설치합니다..."
+    echo "   실행 명령어: $install_cmd"
+    echo ""
+    
+    if eval "$install_cmd"; then
+        log_success "✅ 의존성 설치가 완료되었습니다!"
+        return 0
+    else
+        log_error "❌ 자동 설치에 실패했습니다"
+        return 1
+    fi
+}
+
 check_required_tools() {
     local required_tools=("tar" "gzip" "rsync" "pv" "bc")
     local missing_tools=()
     
+    # 누락된 도구 확인
     for tool in "${required_tools[@]}"; do
         if ! check_command_exists "$tool"; then
             missing_tools+=("$tool")
         fi
     done
     
-    if [ ${#missing_tools[@]} -gt 0 ]; then
-        log_error "다음 필수 도구들이 설치되지 않았습니다: ${missing_tools[*]}"
-        log_info "Ubuntu/Debian: sudo apt install tar gzip rsync pv bc"
-        log_info "CentOS/RHEL: sudo yum install tar gzip rsync pv bc"
+    # 모든 도구가 설치되어 있으면 종료
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        return 0
+    fi
+    
+    # 누락된 도구 알림
+    echo ""
+    log_info "⚠️  다음 필수 도구들이 설치되지 않았습니다: ${missing_tools[*]}"
+    
+    # OS 감지
+    local os_type=$(detect_os)
+    local install_cmd=$(get_install_command "$os_type" "${missing_tools[@]}")
+    
+    # 자동 설치 가능한 경우
+    if [ -n "$install_cmd" ]; then
+        echo ""
+        case "$os_type" in
+            ubuntu|centos|fedora)
+                log_info "🚀 Linux 시스템이 감지되었습니다 ($os_type)"
+                ;;
+            macos)
+                log_info "🍎 macOS 시스템이 감지되었습니다"
+                if ! command -v brew >/dev/null 2>&1; then
+                    log_error "Homebrew가 설치되지 않았습니다"
+                    log_info "Homebrew 설치: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                    show_manual_install_guide "${missing_tools[@]}"
+                    exit 1
+                fi
+                ;;
+        esac
+        
+        echo ""
+        log_info "자동으로 설치하시겠습니까? (Y/n): "
+        read -r response
+        response=${response:-Y}  # 기본값을 Y로 설정
+        
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            if auto_install_dependencies "$install_cmd"; then
+                # 설치 확인
+                local still_missing=()
+                for tool in "${missing_tools[@]}"; do
+                    if ! check_command_exists "$tool"; then
+                        still_missing+=("$tool")
+                    fi
+                done
+                
+                if [ ${#still_missing[@]} -gt 0 ]; then
+                    log_error "일부 도구가 여전히 설치되지 않았습니다: ${still_missing[*]}"
+                    show_manual_install_guide "${still_missing[@]}"
+                    exit 1
+                fi
+            else
+                show_manual_install_guide "${missing_tools[@]}"
+                exit 1
+            fi
+        else
+            show_manual_install_guide "${missing_tools[@]}"
+            exit 1
+        fi
+    else
+        # 자동 설치 불가능한 경우
+        log_error "자동 설치를 지원하지 않는 시스템입니다 ($os_type)"
+        show_manual_install_guide "${missing_tools[@]}"
         exit 1
     fi
 }
@@ -235,8 +383,9 @@ show_success_message() {
 
 confirm_installation() {
     echo ""
-    log_info "설치를 계속하시겠습니까? (y/N)"
+    log_info "설치를 계속하시겠습니까? (Y/n)"
     read -r confirmation
+    confirmation=${confirmation:-Y}  # 기본값을 Y로 설정
     
     if [[ ! $confirmation =~ ^[Yy]$ ]]; then
         log_info "설치가 취소되었습니다"
