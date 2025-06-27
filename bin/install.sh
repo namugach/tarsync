@@ -293,195 +293,31 @@ copy_project_files() {
 create_bash_completion() {
     log_info "Bash 자동완성 스크립트 생성 중..."
     
-    cat > "$COMPLETION_DIR/tarsync" << 'EOF'
-#!/bin/bash
-# tarsync Bash 자동완성 스크립트
-
-_tarsync_completion() {
-    local cur prev opts backup_names
-    COMPREPLY=()
-    cur="${COMP_WORDS[COMP_CWORD]}"
-    prev="${COMP_WORDS[COMP_CWORD-1]}"
+    # 공통 함수 복사
+    cp "$PROJECT_ROOT/src/completion/completion-common.sh" "$COMPLETION_DIR/"
+    chmod +r "$COMPLETION_DIR/completion-common.sh"
     
-    # 메인 명령어들
-    local commands="backup restore list delete details version help"
-    local short_commands="b r ls l rm d show info i v h"
-    
-    # 백업 목록 가져오기 (저장소가 존재할 때만)
-    if [[ -d "/mnt/backup" ]]; then
-        backup_names=$(find /mnt/backup -maxdepth 1 -name "*.tar.gz" -printf "%f\n" 2>/dev/null | sed 's/\.tar\.gz$//' | sort)
-    fi
-    
-    case $prev in
-        tarsync)
-            # 첫 번째 인수: 명령어들
-            COMPREPLY=($(compgen -W "$commands $short_commands" -- "$cur"))
-            return 0
-            ;;
-        backup|b)
-            # backup 명령어 다음: 디렉토리 경로
-            COMPREPLY=($(compgen -d -- "$cur"))
-            return 0
-            ;;
-        restore|r)
-            # restore 명령어 다음: 백업 이름들
-            if [[ -n "$backup_names" ]]; then
-                COMPREPLY=($(compgen -W "$backup_names" -- "$cur"))
-            fi
-            return 0
-            ;;
-        delete|rm|d|details|show|info|i)
-            # delete/details 명령어 다음: 백업 이름들
-            if [[ -n "$backup_names" ]]; then
-                COMPREPLY=($(compgen -W "$backup_names" -- "$cur"))
-            fi
-            return 0
-            ;;
-        list|ls|l)
-            # list 명령어 다음: 숫자 (페이지 크기)
-            COMPREPLY=($(compgen -W "5 10 15 20" -- "$cur"))
-            return 0
-            ;;
-    esac
-    
-    # restore 명령어의 추가 인수들
-    if [[ ${COMP_WORDS[1]} == "restore" || ${COMP_WORDS[1]} == "r" ]]; then
-        case $COMP_CWORD in
-            3)
-                # 세 번째 인수: 복구 대상 경로
-                COMPREPLY=($(compgen -d -- "$cur"))
-                return 0
-                ;;
-            4)
-                # 네 번째 인수: 시뮬레이션 모드
-                COMPREPLY=($(compgen -W "true false" -- "$cur"))
-                return 0
-                ;;
-            5)
-                # 다섯 번째 인수: 삭제 모드
-                COMPREPLY=($(compgen -W "true false" -- "$cur"))
-                return 0
-                ;;
-        esac
-    fi
-    
-    return 0
-}
-
-# tarsync 명령어에 대한 자동완성 등록
-complete -F _tarsync_completion tarsync
-EOF
-    
+    # Bash 자동완성 복사 및 설정
+    cp "$PROJECT_ROOT/src/completion/bash.sh" "$COMPLETION_DIR/tarsync"
     chmod +r "$COMPLETION_DIR/tarsync"
-    log_success "Bash 자동완성 스크립트 생성 완료"
+    
+    log_success "고급 Bash 자동완성 스크립트 생성 완료"
+    log_info "💡 설명 모드를 활성화하려면: export TARSYNC_SHOW_HELP=true"
 }
 
 # ZSH 자동완성 스크립트 생성
 create_zsh_completion() {
     log_info "ZSH 자동완성 스크립트 생성 중..."
     
-    cat > "$ZSH_COMPLETION_DIR/_tarsync" << 'EOF'
-#compdef tarsync
-
-# tarsync ZSH 자동완성 스크립트
-
-_tarsync() {
-    local -a commands
-    local -a backup_names
+    # 공통 함수 복사 (ZSH 디렉토리에도)
+    cp "$PROJECT_ROOT/src/completion/completion-common.sh" "$ZSH_COMPLETION_DIR/"
+    chmod +r "$ZSH_COMPLETION_DIR/completion-common.sh"
     
-    # 백업 목록 가져오기
-    if [[ -d "/mnt/backup" ]]; then
-        backup_names=($(find /mnt/backup -maxdepth 1 -name "*.tar.gz" -printf "%f\n" 2>/dev/null | sed 's/\.tar\.gz$//' | sort))
-    fi
-    
-    # 서브 명령어별 자동완성
-    if (( CURRENT == 3 )); then
-        case ${words[2]} in
-            restore|r)
-                if [[ ${#backup_names[@]} -gt 0 ]]; then
-                    _describe 'backup' backup_names
-                fi
-                return 0
-                ;;
-            delete|rm|d|details|show|info|i)
-                if [[ ${#backup_names[@]} -gt 0 ]]; then
-                    _describe 'backup' backup_names
-                fi
-                return 0
-                ;;
-            backup|b)
-                _directories
-                return 0
-                ;;
-            list|ls|l)
-                local -a page_sizes
-                page_sizes=("5:5개씩 표시" "10:10개씩 표시" "15:15개씩 표시" "20:20개씩 표시")
-                _describe 'page_size' page_sizes
-                return 0
-                ;;
-        esac
-    fi
-    
-    # restore 명령어의 추가 인수들
-    if [[ ${words[2]} == "restore" || ${words[2]} == "r" ]]; then
-        case $CURRENT in
-            4)
-                _directories
-                return 0
-                ;;
-            5)
-                local -a sim_options
-                sim_options=("true:시뮬레이션 모드" "false:실제 복구")
-                _describe 'simulation' sim_options
-                return 0
-                ;;
-            6)
-                local -a del_options
-                del_options=("true:삭제 모드" "false:보존 모드")
-                _describe 'delete_mode' del_options
-                return 0
-                ;;
-        esac
-    fi
-    
-    # 첫 번째 인자: 메인 명령어들
-    if (( CURRENT > 2 )); then
-        return 0
-    fi
-    
-    commands=(
-        "backup:디렉토리 백업 생성"
-        "b:backup의 단축 명령어"
-        "restore:백업 복구"
-        "r:restore의 단축 명령어"  
-        "list:백업 목록 조회"
-        "ls:list의 단축 명령어"
-        "l:list의 단축 명령어"
-        "delete:백업 삭제"
-        "rm:delete의 단축 명령어"
-        "d:delete의 단축 명령어"
-        "details:백업 상세 정보"
-        "show:details의 단축 명령어"
-        "info:details의 단축 명령어"
-        "i:details의 단축 명령어"
-        "version:버전 정보"
-        "v:version의 단축 명령어"
-        "help:도움말"
-        "h:help의 단축 명령어"
-    )
-    
-    _describe 'command' commands
-}
-
-# 자동완성 시스템 초기화 확인
-(( $+functions[compdef] )) || autoload -Uz compinit && compinit
-
-# 자동완성 함수 등록
-compdef _tarsync tarsync
-EOF
-    
+    # ZSH 자동완성 복사 및 설정
+    cp "$PROJECT_ROOT/src/completion/zsh.sh" "$ZSH_COMPLETION_DIR/_tarsync"
     chmod +r "$ZSH_COMPLETION_DIR/_tarsync"
-    log_success "ZSH 자동완성 스크립트 생성 완료"
+    
+    log_success "고급 ZSH 자동완성 스크립트 생성 완료"
 }
 
 # ===== 레벨 5: 중간 레벨 통합 함수 =====
@@ -579,6 +415,13 @@ show_success_message() {
     echo "      tarsync list                    # 목록"
     echo ""
     echo -e "${SUCCESS}💡 탭 키를 눌러서 자동완성 기능을 사용해보세요!${NC}"
+    echo ""
+    echo -e "${HIGHLIGHT}🎯 고급 자동완성 기능:${NC}"
+    echo "   • 명령어별 컨텍스트 인식 자동완성"
+    echo "   • 백업 파일 실시간 목록 및 메타데이터 표시"
+    echo "   • ZSH: 각 옵션에 대한 설명 표시"
+    echo "   • Bash: TARSYNC_SHOW_HELP=true로 설명 모드 활성화"
+    echo "   • 캐시 기능으로 빠른 응답 속도"
     echo ""
     echo -e "${WARNING}📝 참고사항:${NC}"
     echo "   • 백업 저장소: /mnt/backup (자동 생성)"

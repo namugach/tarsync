@@ -273,7 +273,12 @@ remove_bash_completion() {
             rm -f "$dir/tarsync"
             log_success "Bash 자동완성 삭제: $dir/tarsync"
             removed=true
-            break
+        fi
+        
+        # 공통 파일도 제거
+        if [[ -f "$dir/completion-common.sh" ]]; then
+            rm -f "$dir/completion-common.sh"
+            log_success "Bash 공통 함수 삭제: $dir/completion-common.sh"
         fi
     done
     
@@ -289,7 +294,12 @@ remove_zsh_completion() {
             rm -f "$dir/_tarsync"
             log_success "ZSH 자동완성 삭제: $dir/_tarsync"
             removed=true
-            break
+        fi
+        
+        # 공통 파일도 제거
+        if [[ -f "$dir/completion-common.sh" ]]; then
+            rm -f "$dir/completion-common.sh"
+            log_success "ZSH 공통 함수 삭제: $dir/completion-common.sh"
         fi
     done
     
