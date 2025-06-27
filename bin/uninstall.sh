@@ -374,7 +374,7 @@ verify_removal() {
 
 # 안전한 제거 수행
 perform_safe_removal() {
-    log_info "안전한 제거 진행 중...")
+    log_info "안전한 제거 진행 중..."
     
     # 백업 생성
     if create_removal_backup; then
