@@ -6,6 +6,9 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# 색상 유틸리티 로드
+source "$PROJECT_ROOT/src/utils/colors.sh"
+
 # 모듈 경로들
 BACKUP_MODULE="$PROJECT_ROOT/src/modules/backup.sh"
 RESTORE_MODULE="$PROJECT_ROOT/src/modules/restore.sh"
@@ -14,16 +17,6 @@ LIST_MODULE="$PROJECT_ROOT/src/modules/list.sh"
 # 버전 정보
 VERSION="1.0.0"
 PROGRAM_NAME="tarsync"
-
-# 색상 정의
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-NC='\033[0m' # No Color
 
 # 도움말 표시
 show_help() {
