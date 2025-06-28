@@ -2,11 +2,23 @@
 # tarsync 기본 설정 파일
 # 기존 config.ts에서 변환됨
 
+# 설정 파일에서 백업 디렉토리 읽기
+load_backup_settings() {
+    local settings_file="$HOME/.tarsync/config/settings.env"
+    if [[ -f "$settings_file" ]]; then
+        source "$settings_file"
+        BACKUP_PATH="$BACKUP_DIR"
+    else
+        # 설정 파일이 없으면 기본값 사용
+        BACKUP_PATH="/mnt/backup"
+    fi
+}
+
+# 설정 로드
+load_backup_settings
+
 # 백업 대상 디스크 경로
 BACKUP_DISK="/"
-
-# 백업 저장 디렉토리 경로  
-BACKUP_PATH="/mnt/backup"
 
 # 기본 제외 경로 목록
 EXCLUDE_DEFAULT=(

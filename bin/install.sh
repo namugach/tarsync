@@ -253,6 +253,141 @@ install_tarsync_script() {
     fi
 }
 
+# 백업 디렉토리 설정
+configure_backup_directory() {
+    echo ""
+    log_info "📁 백업 저장 위치를 설정합니다"
+    echo ""
+    echo "   백업 파일들이 저장될 디렉토리를 입력하세요:"
+    echo "   • 기본값: /mnt/backup (별도 디스크/파티션 권장)"
+    echo "   • 예시: ~/backup, /data/backup, /var/backup"
+    echo ""
+    echo -n "   백업 디렉토리 [/mnt/backup]: "
+    read -r backup_dir
+    backup_dir=${backup_dir:-/mnt/backup}
+    
+    # 경로 정규화 (~ 확장)
+    if [[ "$backup_dir" == "~/"* ]]; then
+        backup_dir="${HOME}/${backup_dir#~/}"
+    elif [[ "$backup_dir" == "~" ]]; then
+        backup_dir="${HOME}"
+    fi
+    
+    echo ""
+    log_info "선택된 백업 디렉토리: $backup_dir"
+    
+    # 디렉토리 생성 시도
+    if [[ ! -d "$backup_dir" ]]; then
+        log_info "백업 디렉토리가 존재하지 않습니다. 생성을 시도합니다..."
+        
+        if mkdir -p "$backup_dir" 2>/dev/null; then
+            log_success "✅ 백업 디렉토리가 생성되었습니다: $backup_dir"
+        else
+            log_info "⚠️ 디렉토리 생성에 실패했습니다. sudo 권한이 필요할 수 있습니다."
+            echo ""
+            echo "다음 명령어를 실행해보세요:"
+            echo "   sudo mkdir -p '$backup_dir'"
+            echo "   sudo chown \$USER:\$USER '$backup_dir'"
+            echo ""
+            log_info "위 명령어를 실행하고 다시 설치하시겠습니까? (y/N): "
+            read -r retry_response
+            
+            if [[ "$retry_response" =~ ^[Yy]$ ]]; then
+                echo "sudo mkdir -p '$backup_dir' && sudo chown \$USER:\$USER '$backup_dir'" | bash
+                if [[ -d "$backup_dir" ]] && [[ -w "$backup_dir" ]]; then
+                    log_success "✅ sudo를 사용하여 백업 디렉토리가 생성되었습니다"
+                else
+                    log_error "❌ 백업 디렉토리 생성에 실패했습니다"
+                    exit 1
+                fi
+            else
+                log_error "❌ 백업 디렉토리를 생성할 수 없어 설치를 중단합니다"
+                exit 1
+            fi
+        fi
+    else
+        # 기존 디렉토리 권한 확인
+        if [[ -w "$backup_dir" ]]; then
+            log_success "✅ 백업 디렉토리 권한이 확인되었습니다"
+        else
+            log_info "⚠️ 백업 디렉토리에 쓰기 권한이 없습니다: $backup_dir"
+            echo ""
+            echo "권한 수정을 시도하시겠습니까?"
+            echo "   실행할 명령어: sudo chown \$USER:\$USER '$backup_dir'"
+            echo ""
+            log_info "권한을 수정하시겠습니까? (y/N): "
+            read -r fix_permission
+            
+            if [[ "$fix_permission" =~ ^[Yy]$ ]]; then
+                echo "sudo chown \$USER:\$USER '$backup_dir'" | bash
+                
+                # 권한 수정 후 재확인
+                if [[ -w "$backup_dir" ]]; then
+                    log_success "✅ 권한이 수정되어 백업 디렉토리를 사용할 수 있습니다"
+                else
+                    log_error "❌ 권한 수정에 실패했습니다"
+                    echo ""
+                    log_info "다른 백업 디렉토리를 사용하시겠습니까? (Y/n): "
+                    read -r retry_response
+                    retry_response=${retry_response:-Y}
+                    
+                    if [[ "$retry_response" =~ ^[Yy]$ ]]; then
+                        echo ""
+                        echo "다른 백업 디렉토리를 입력하세요:"
+                        echo -n "   백업 디렉토리: "
+                        read -r new_backup_dir
+                        
+                        if [[ -n "$new_backup_dir" ]]; then
+                            # 재귀적으로 다시 시도 (새 경로로)
+                            BACKUP_DIRECTORY=""
+                            backup_dir="$new_backup_dir"
+                            
+                            # 경로 정규화 (~ 확장)
+                            if [[ "$backup_dir" == "~/"* ]]; then
+                                backup_dir="${HOME}/${backup_dir#~/}"
+                            elif [[ "$backup_dir" == "~" ]]; then
+                                backup_dir="${HOME}"
+                            fi
+                            
+                            log_info "새로운 백업 디렉토리: $backup_dir"
+                            
+                            # 새 경로로 다시 검증 (간단한 재귀)
+                            if [[ ! -d "$backup_dir" ]]; then
+                                if mkdir -p "$backup_dir" 2>/dev/null; then
+                                    log_success "✅ 새 백업 디렉토리가 생성되었습니다: $backup_dir"
+                                else
+                                    log_error "❌ 새 백업 디렉토리 생성에 실패했습니다"
+                                    exit 1
+                                fi
+                            elif [[ ! -w "$backup_dir" ]]; then
+                                log_error "❌ 새 백업 디렉토리에도 쓰기 권한이 없습니다: $backup_dir"
+                                exit 1
+                            else
+                                log_success "✅ 새 백업 디렉토리 권한이 확인되었습니다"
+                            fi
+                        else
+                            log_error "❌ 유효한 백업 디렉토리가 입력되지 않았습니다"
+                            exit 1
+                        fi
+                    else
+                        log_error "❌ 사용 가능한 백업 디렉토리가 없어 설치를 중단합니다"
+                        exit 1
+                    fi
+                fi
+            else
+                log_error "❌ 백업 디렉토리 권한 문제로 설치를 중단합니다"
+                exit 1
+            fi
+        fi
+    fi
+    
+    # 전역 변수로 저장
+    BACKUP_DIRECTORY="$backup_dir"
+    
+    echo ""
+    log_info "📦 백업 디렉토리 설정이 완료되었습니다"
+}
+
 copy_project_files() {
     create_dir_if_not_exists "$PROJECT_DIR/src"
     create_dir_if_not_exists "$PROJECT_DIR/config"
@@ -260,15 +395,16 @@ copy_project_files() {
     cp -r "$PROJECT_ROOT/src/"* "$PROJECT_DIR/src/"
     cp -r "$PROJECT_ROOT/config/"* "$PROJECT_DIR/config/"
     
-    # 기본 설정 파일 생성
-    cat > "$PROJECT_DIR/config/settings.env" << 'EOF'
+    # 설정 파일 생성 (백업 디렉토리 반영)
+    cat > "$PROJECT_DIR/config/settings.env" << EOF
 # tarsync 기본 설정
 LANGUAGE=ko
-BACKUP_DIR=/mnt/backup
+BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup}
 LOG_LEVEL=info
 EOF
     
     log_info "프로젝트 파일이 복사되었습니다"
+    log_info "백업 저장 위치: ${BACKUP_DIRECTORY:-/mnt/backup}"
 }
 
 install_completions() {
@@ -441,6 +577,7 @@ main() {
     
     # 파일 설치
     log_info "파일 설치 중..."
+    configure_backup_directory
     copy_project_files || exit 1
     install_tarsync_script || exit 1
     
