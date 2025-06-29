@@ -12,11 +12,11 @@ source "$PROJECT_ROOT/src/utils/version.sh"
 
 # 설치 디렉토리
 # Installation directories
-PROJECT_DIR="$HOME/.tarsync"
-INSTALL_DIR="$HOME/.tarsync/bin"
-COMPLETION_DIR="$HOME/.tarsync/completion/bash"
-ZSH_COMPLETION_DIR="$HOME/.tarsync/completion/zsh"
-CONFIG_DIR="$HOME/.tarsync/config"
+PROJECT_DIR="/usr/share/tarsync"
+INSTALL_DIR="/usr/local/bin"
+COMPLETION_DIR="/etc/bash_completion.d"
+ZSH_COMPLETION_DIR="/usr/share/zsh/site-functions"
+CONFIG_DIR="/etc/tarsync"
 
 # ===== 기본 유틸리티 함수 =====
 # ===== Basic Utility Functions =====
@@ -213,9 +213,16 @@ check_minimal_requirements() {
         exit 1
     fi
     
-    # 홈 디렉토리 권한 체크
-    if [ ! -w "$HOME" ]; then
-        log_error "홈 디렉토리에 쓰기 권한이 없습니다: $HOME"
+    # sudo 권한 체크 (전역 설치 필요)
+    if [ "$EUID" -ne 0 ]; then
+        log_error "전역 설치를 위해서는 sudo 권한이 필요합니다"
+        log_info "다음과 같이 실행해주세요: sudo ./bin/install.sh"
+        exit 1
+    fi
+    
+    # 시스템 디렉토리 생성 가능 여부 체크
+    if [ ! -w "/usr/local" ] || [ ! -w "/etc" ] || [ ! -w "/usr/share" ]; then
+        log_error "시스템 디렉토리에 쓰기 권한이 없습니다"
         exit 1
     fi
 }
@@ -229,12 +236,13 @@ update_script_paths() {
 
 install_tarsync_script() {
     create_dir_if_not_exists "$INSTALL_DIR"
+    create_dir_if_not_exists "$PROJECT_DIR"
     
     cp "$PROJECT_ROOT/bin/tarsync.sh" "$INSTALL_DIR/tarsync"
     chmod +x "$INSTALL_DIR/tarsync"
     
-    # VERSION 파일도 복사
-    cp "$PROJECT_ROOT/bin/VERSION" "$INSTALL_DIR/VERSION"
+    # VERSION 파일은 PROJECT_DIR에 복사
+    cp "$PROJECT_ROOT/bin/VERSION" "$PROJECT_DIR/VERSION"
     
     update_script_paths
     
@@ -245,8 +253,8 @@ install_tarsync_script() {
         return 1
     fi
     
-    if check_file_exists "$INSTALL_DIR/VERSION"; then
-        log_info "VERSION 파일이 설치되었습니다: $INSTALL_DIR/VERSION"
+    if check_file_exists "$PROJECT_DIR/VERSION"; then
+        log_info "VERSION 파일이 설치되었습니다: $PROJECT_DIR/VERSION"
     else
         log_error "VERSION 파일 설치에 실패했습니다"
         return 1
@@ -423,58 +431,18 @@ install_completions() {
 }
 
 configure_bash_completion() {
-    if check_file_exists "$HOME/.bashrc"; then
-        if ! grep -q "source $COMPLETION_DIR/tarsync" "$HOME/.bashrc"; then
-            echo "" >> "$HOME/.bashrc"
-            echo "# Tarsync completion" >> "$HOME/.bashrc"
-            echo "[ -f $COMPLETION_DIR/tarsync ] && source $COMPLETION_DIR/tarsync" >> "$HOME/.bashrc"
-            log_info "Bash 자동완성이 ~/.bashrc에 추가되었습니다"
-        fi
-    fi
+    # 전역 설치에서는 /etc/bash_completion.d/ 에 설치하면 자동으로 로드됨
+    log_info "Bash 자동완성이 시스템 전역에 설치되었습니다"
 }
 
 configure_zsh_completion() {
-    if check_file_exists "$HOME/.zshrc"; then
-        if ! grep -q "autoload -Uz compinit" "$HOME/.zshrc"; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# ZSH completion system" >> "$HOME/.zshrc"
-            echo "autoload -Uz compinit" >> "$HOME/.zshrc"
-            echo "compinit" >> "$HOME/.zshrc"
-        fi
-        
-        if ! grep -q "fpath=.*$ZSH_COMPLETION_DIR" "$HOME/.zshrc"; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# Tarsync completion path" >> "$HOME/.zshrc"
-            echo "fpath=($ZSH_COMPLETION_DIR \$fpath)" >> "$HOME/.zshrc"
-        fi
-        
-        if ! grep -q "source $ZSH_COMPLETION_DIR/_tarsync" "$HOME/.zshrc"; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# Tarsync completion" >> "$HOME/.zshrc"
-            echo "[ -f $ZSH_COMPLETION_DIR/_tarsync ] && source $ZSH_COMPLETION_DIR/_tarsync" >> "$HOME/.zshrc"
-            log_info "ZSH 자동완성이 ~/.zshrc에 추가되었습니다"
-        fi
-    fi
+    # 전역 설치에서는 /usr/share/zsh/site-functions/ 에 설치하면 자동으로 로드됨  
+    log_info "ZSH 자동완성이 시스템 전역에 설치되었습니다"
 }
 
 update_path() {
-    if check_file_exists "$HOME/.bashrc"; then
-        if ! grep -q "$INSTALL_DIR" "$HOME/.bashrc"; then
-            echo "" >> "$HOME/.bashrc"
-            echo "# Tarsync PATH" >> "$HOME/.bashrc"
-            echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$HOME/.bashrc"
-            log_info "PATH가 ~/.bashrc에 추가되었습니다"
-        fi
-    fi
-    
-    if check_file_exists "$HOME/.zshrc"; then
-        if ! grep -q "$INSTALL_DIR" "$HOME/.zshrc"; then
-            echo "" >> "$HOME/.zshrc"
-            echo "# Tarsync PATH" >> "$HOME/.zshrc"
-            echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$HOME/.zshrc"
-            log_info "PATH가 ~/.zshrc에 추가되었습니다"
-        fi
-    fi
+    # 전역 설치에서는 /usr/local/bin이 이미 PATH에 포함되어 있어서 별도 설정 불필요
+    log_info "실행파일이 /usr/local/bin에 설치되어 PATH 업데이트가 필요하지 않습니다"
 }
 
 # ===== 검증 함수 =====
@@ -499,16 +467,88 @@ show_success_message() {
     echo ""
     log_info "📍 설치 위치:"
     echo "   • 실행파일: $INSTALL_DIR/tarsync"
-    echo "   • 버전파일: $INSTALL_DIR/VERSION"
+    echo "   • 버전파일: $PROJECT_DIR/VERSION"
     echo "   • 라이브러리: $PROJECT_DIR"
     echo "   • Bash 자동완성: $COMPLETION_DIR/tarsync"
     echo "   • ZSH 자동완성: $ZSH_COMPLETION_DIR/_tarsync"
     echo ""
-    log_info "🚀 사용 시작:"
-    echo "   1. 새 터미널을 열거나 현재 터미널을 새로고침하세요:"
-    echo "      source ~/.bashrc    # Bash 사용자"
-    echo "      source ~/.zshrc     # ZSH 사용자"
-    echo "   2. tarsync 명령어 사용:"
+    
+    # 환경 감지 및 자동완성 즉시 사용 옵션 제공
+    offer_immediate_completion_setup
+}
+
+# 사용자 쉘 환경 감지
+detect_user_shell() {
+    if [ -n "$BASH_VERSION" ]; then
+        echo "bash"
+    elif [ -n "$ZSH_VERSION" ]; then
+        echo "zsh"
+    else
+        # fallback: $SHELL 변수 사용
+        case "$SHELL" in
+            */bash) echo "bash" ;;
+            */zsh) echo "zsh" ;;
+            *) echo "unknown" ;;
+        esac
+    fi
+}
+
+# 쉘별 맞춤 명령어 제시
+show_shell_specific_completion_commands() {
+    local user_shell=$(detect_user_shell)
+    
+    echo ""
+    case "$user_shell" in
+        bash)
+            echo -e "   ${CYAN}🐚 Bash 환경이 감지되었습니다${NC}"
+            echo ""
+            echo "   다음 중 하나를 실행하세요:"
+            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # 설정 파일 다시 로드"
+            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # completion 직접 로드"  
+            echo -e "   ${YELLOW}3) exec bash${NC}                     # 새 쉘 세션 시작 (권장)"
+            ;;
+        zsh)
+            echo -e "   ${CYAN}🐚 ZSH 환경이 감지되었습니다${NC}"
+            echo ""
+            echo "   다음 중 하나를 실행하세요:"
+            echo -e "   ${YELLOW}1) source ~/.zshrc${NC}               # 설정 파일 다시 로드"
+            echo -e "   ${YELLOW}2) autoload -U compinit && compinit${NC}  # completion 재초기화"
+            echo -e "   ${YELLOW}3) exec zsh${NC}                      # 새 쉘 세션 시작 (권장)"
+            ;;
+        *)
+            echo -e "   ${CYAN}🐚 쉘 환경: $SHELL${NC}"
+            echo ""
+            echo "   다음 중 하나를 실행하세요:"
+            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # Bash 설정 로드"
+            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # completion 직접 로드"
+            echo -e "   ${YELLOW}3) exec \$SHELL${NC}                  # 새 쉘 세션 시작 (권장)"
+            ;;
+    esac
+    echo ""
+    echo -e "   ${DIM}💡 명령어를 복사해서 터미널에 붙여넣으세요${NC}"
+}
+
+# 자동완성 즉시 사용을 위한 선택권 제공
+offer_immediate_completion_setup() {
+    echo ""
+    log_info "🚀 자동완성을 바로 사용하려면:"
+    
+    # Docker/컨테이너 환경 감지
+    local is_container=false
+    if [ -f /.dockerenv ] || [ -n "${container:-}" ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        is_container=true
+    fi
+    
+    # 컨테이너 환경일 때만 추가 메시지 출력
+    if [ "$is_container" = true ]; then
+        echo -e "   ${YELLOW}📦 컨테이너 환경이 감지되었습니다${NC}"
+    fi
+    
+    # 쉘별 맞춤 명령어 안내 (항상 실행)
+    show_shell_specific_completion_commands
+    
+    echo ""
+    log_info "📖 tarsync 명령어 사용법:"
     echo "      tarsync help                    # 도움말"
     echo "      tarsync version                 # 버전 확인"
     echo "      tarsync backup /home/user       # 백업"
@@ -527,6 +567,80 @@ confirm_installation() {
         log_info "설치가 취소되었습니다"
         exit 0
     fi
+}
+
+# bash-completion 설치 및 활성화
+# Install and enable bash-completion
+setup_bash_completion() {
+    log_info "bash-completion 시스템 설정 중..."
+    
+    # bash-completion 패키지 설치 여부 확인
+    if ! dpkg -l | grep -q "bash-completion"; then
+        log_info "bash-completion 패키지를 설치합니다..."
+        
+        # OS 감지해서 적절한 설치 명령어 사용
+        local os_type=$(detect_os)
+        case "$os_type" in
+            ubuntu)
+                apt update -qq && apt install -y bash-completion
+                ;;
+            centos)
+                yum install -y bash-completion
+                ;;
+            fedora)
+                dnf install -y bash-completion
+                ;;
+            *)
+                log_warn "자동 설치를 지원하지 않는 시스템입니다: $os_type"
+                log_info "다음 명령어로 수동 설치해주세요:"
+                echo "   Ubuntu/Debian: apt install bash-completion"
+                echo "   CentOS/RHEL:   yum install bash-completion"
+                echo "   Fedora:        dnf install bash-completion"
+                return 1
+                ;;
+        esac
+        
+        if dpkg -l | grep -q "bash-completion"; then
+            log_success "✅ bash-completion 패키지가 설치되었습니다"
+        else
+            log_error "❌ bash-completion 패키지 설치에 실패했습니다"
+            return 1
+        fi
+    else
+        log_info "bash-completion 패키지가 이미 설치되어 있습니다"
+    fi
+    
+    # /etc/bash.bashrc에서 bash completion 활성화
+    if [ -f "/etc/bash.bashrc" ]; then
+        # 이미 활성화되어 있는지 확인
+        if grep -q "^if ! shopt -oq posix; then" /etc/bash.bashrc; then
+            log_info "bash completion이 이미 활성화되어 있습니다"
+        else
+            log_info "bash completion을 활성화합니다..."
+            
+            # 전체 bash completion 블록 활성화 (주석 제거)
+            sed -i 's/^#if ! shopt -oq posix; then/if ! shopt -oq posix; then/' /etc/bash.bashrc
+            sed -i 's/^#  if \[ -f \/usr\/share\/bash-completion\/bash_completion \]/  if [ -f \/usr\/share\/bash-completion\/bash_completion ]/' /etc/bash.bashrc
+            sed -i 's/^#    \. \/usr\/share\/bash-completion\/bash_completion/    . \/usr\/share\/bash-completion\/bash_completion/' /etc/bash.bashrc
+            sed -i 's/^#  elif \[ -f \/etc\/bash_completion \]/  elif [ -f \/etc\/bash_completion ]/' /etc/bash.bashrc
+            sed -i 's/^#    \. \/etc\/bash_completion/    . \/etc\/bash_completion/' /etc/bash.bashrc
+            sed -i 's/^#  fi/  fi/' /etc/bash.bashrc
+            sed -i 's/^#fi/fi/' /etc/bash.bashrc
+            
+            # 활성화 확인
+            if grep -q "^if ! shopt -oq posix; then" /etc/bash.bashrc; then
+                log_success "✅ bash completion이 활성화되었습니다"
+            else
+                log_error "❌ bash completion 활성화에 실패했습니다"
+                return 1
+            fi
+        fi
+    else
+        log_warn "/etc/bash.bashrc 파일을 찾을 수 없습니다"
+        return 1
+    fi
+    
+    log_success "bash-completion 시스템 설정이 완료되었습니다"
 }
 
 # ===== 메인 설치 프로세스 =====
@@ -551,16 +665,6 @@ main() {
     check_required_tools
     log_info "모든 의존성이 충족되었습니다"
     
-    log_info "디렉토리 권한 확인 중..."
-    local test_dir="$HOME/.tarsync_test"
-    if mkdir -p "$test_dir" 2>/dev/null; then
-        rmdir "$test_dir"
-        log_info "디렉토리 권한이 충분합니다"
-    else
-        log_error "홈 디렉토리에 설치 권한이 없습니다"
-        exit 1
-    fi
-    
     # 최종 확인
     confirm_installation
     
@@ -584,6 +688,10 @@ main() {
     # 자동완성 설치
     log_info "자동완성 기능 설치 중..."
     install_completions || exit 1
+    
+    # bash-completion 시스템 활성화
+    setup_bash_completion || exit 1
+    
     configure_bash_completion
     configure_zsh_completion
     

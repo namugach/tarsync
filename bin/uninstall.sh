@@ -10,106 +10,99 @@ source "$PROJECT_ROOT/src/utils/colors.sh"
 source "$PROJECT_ROOT/src/utils/log.sh"
 
 
-# 설치 경로
-# Installation paths
-PROJECT_DIR="$HOME/.tarsync"
-INSTALL_DIR="$HOME/.tarsync/bin"
+# 설치 경로 (전역 설치)
+# Installation paths (Global installation)
+PROJECT_DIR="/usr/share/tarsync"
+INSTALL_DIR="/usr/local/bin"
+COMPLETION_DIR="/etc/bash_completion.d"
+ZSH_COMPLETION_DIR="/usr/share/zsh/site-functions"
+CONFIG_DIR="/etc/tarsync"
 
-# tarsync 디렉토리 제거
-# Remove tarsync directory
+# sudo 권한 체크
+check_sudo_privileges() {
+    if [ "$EUID" -ne 0 ]; then
+        log_error "전역 제거를 위해서는 sudo 권한이 필요합니다"
+        log_info "다음과 같이 실행해주세요: sudo ./bin/uninstall.sh"
+        exit 1
+    fi
+}
+
+# tarsync 파일들 제거 (전역 설치)
+# Remove tarsync files (Global installation)
 remove_tarsync() {
+    log_info "tarsync 전역 설치 파일 제거 중..."
+    
+    # 실행파일 제거
+    if [ -f "$INSTALL_DIR/tarsync" ]; then
+        rm -f "$INSTALL_DIR/tarsync"
+        log_info "실행파일이 제거되었습니다: $INSTALL_DIR/tarsync"
+    fi
+    
+    # 프로젝트 디렉토리 제거
     if [ -d "$PROJECT_DIR" ]; then
-        log_info "tarsync 디렉토리 제거 중: $PROJECT_DIR"
         rm -rf "$PROJECT_DIR"
-        
-        if [ ! -d "$PROJECT_DIR" ]; then
-            log_success "tarsync 디렉토리가 제거되었습니다"
-        else
-            log_error "tarsync 디렉토리 제거에 실패했습니다"
-            return 1
-        fi
-    else
-        log_info "tarsync 디렉토리가 없습니다: $PROJECT_DIR"
+        log_info "프로젝트 디렉토리가 제거되었습니다: $PROJECT_DIR"
     fi
+    
+    # 설정 디렉토리 제거
+    if [ -d "$CONFIG_DIR" ]; then
+        rm -rf "$CONFIG_DIR"
+        log_info "설정 디렉토리가 제거되었습니다: $CONFIG_DIR"
+    fi
+    
+    # 자동완성 파일들 제거
+    if [ -f "$COMPLETION_DIR/tarsync" ]; then
+        rm -f "$COMPLETION_DIR/tarsync"
+        log_info "Bash 자동완성 파일이 제거되었습니다: $COMPLETION_DIR/tarsync"
+    fi
+    
+    if [ -f "$ZSH_COMPLETION_DIR/_tarsync" ]; then
+        rm -f "$ZSH_COMPLETION_DIR/_tarsync"
+        log_info "ZSH 자동완성 파일이 제거되었습니다: $ZSH_COMPLETION_DIR/_tarsync"
+    fi
+    
+    log_success "tarsync 전역 설치 파일들이 제거되었습니다"
 }
 
-# PATH에서 tarsync 제거
-# Remove tarsync from PATH
+# PATH에서 tarsync 제거 (전역 설치에서는 불필요)
+# Remove tarsync from PATH (Not needed for global installation)
 remove_from_path() {
-    log_info "PATH에서 tarsync 경로 제거 중..."
-    
-    # .bashrc에서 제거
-    if [ -f "$HOME/.bashrc" ]; then
-        if grep -q "\.tarsync/bin" "$HOME/.bashrc"; then
-            sed -i '/export PATH=".*\.tarsync\/bin/d' "$HOME/.bashrc"
-            log_info "~/.bashrc에서 PATH 항목이 제거되었습니다"
-        fi
-    fi
-    
-    # .zshrc에서 제거
-    if [ -f "$HOME/.zshrc" ]; then
-        if grep -q "\.tarsync/bin" "$HOME/.zshrc"; then
-            sed -i '/export PATH=".*\.tarsync\/bin/d' "$HOME/.zshrc"
-            log_info "~/.zshrc에서 PATH 항목이 제거되었습니다"
-        fi
-    fi
+    log_info "전역 설치에서는 PATH 수정이 필요하지 않습니다"
 }
 
-# 자동완성 설정 제거
-# Remove completion settings
+# 자동완성 설정 제거 (전역 설치에서는 시스템 파일에서 이미 제거됨)
+# Remove completion settings (Already removed from system files in global installation)
 remove_completion_settings() {
-    log_info "자동완성 설정 제거 중..."
-    
-    # Bash 자동완성 제거
-    if [ -f "$HOME/.bashrc" ]; then
-        if grep -q "tarsync" "$HOME/.bashrc"; then
-            sed -i '/# Tarsync completion/d' "$HOME/.bashrc"
-            sed -i '/\.tarsync.*tarsync/d' "$HOME/.bashrc"
-            log_info "~/.bashrc에서 Bash 자동완성이 제거되었습니다"
-        fi
-    fi
-    
-    # ZSH 자동완성 제거
-    if [ -f "$HOME/.zshrc" ]; then
-        if grep -q "tarsync" "$HOME/.zshrc"; then
-            sed -i '/# Tarsync completion/d' "$HOME/.zshrc"
-            sed -i '/# ZSH completion system/d' "$HOME/.zshrc"
-            sed -i '/autoload -Uz compinit/d' "$HOME/.zshrc"
-            sed -i '/compinit/d' "$HOME/.zshrc"
-            sed -i '/# Tarsync completion path/d' "$HOME/.zshrc"
-            sed -i '/fpath=.*\.tarsync/d' "$HOME/.zshrc"
-            sed -i '/\.tarsync.*_tarsync/d' "$HOME/.zshrc"
-            log_info "~/.zshrc에서 ZSH 자동완성이 제거되었습니다"
-        fi
-    fi
+    log_info "전역 자동완성 파일들은 이미 제거되었습니다"
 }
 
-# 제거 확인
-# Verify uninstallation
+# 제거 확인 (전역 설치)
+# Verify uninstallation (Global installation)
 verify_uninstallation() {
     local issues=()
     
-    # 디렉토리 확인
+    # 실행파일 확인
+    if [ -f "$INSTALL_DIR/tarsync" ]; then
+        issues+=("tarsync 실행파일이 여전히 존재합니다: $INSTALL_DIR/tarsync")
+    fi
+    
+    # 프로젝트 디렉토리 확인
     if [ -d "$PROJECT_DIR" ]; then
-        issues+=("tarsync 디렉토리가 여전히 존재합니다: $PROJECT_DIR")
+        issues+=("tarsync 프로젝트 디렉토리가 여전히 존재합니다: $PROJECT_DIR")
     fi
     
-    # PATH 확인
-    if grep -q "\.tarsync/bin" "$HOME/.bashrc" 2>/dev/null; then
-        issues+=("~/.bashrc에 tarsync PATH가 여전히 있습니다")
+    # 설정 디렉토리 확인
+    if [ -d "$CONFIG_DIR" ]; then
+        issues+=("tarsync 설정 디렉토리가 여전히 존재합니다: $CONFIG_DIR")
     fi
     
-    if grep -q "\.tarsync/bin" "$HOME/.zshrc" 2>/dev/null; then
-        issues+=("~/.zshrc에 tarsync PATH가 여전히 있습니다")
+    # 자동완성 파일 확인
+    if [ -f "$COMPLETION_DIR/tarsync" ]; then
+        issues+=("Bash 자동완성 파일이 여전히 존재합니다: $COMPLETION_DIR/tarsync")
     fi
     
-    # 자동완성 확인
-    if grep -q "tarsync" "$HOME/.bashrc" 2>/dev/null; then
-        issues+=("~/.bashrc에 tarsync 자동완성이 여전히 있습니다")
-    fi
-    
-    if grep -q "tarsync" "$HOME/.zshrc" 2>/dev/null; then
-        issues+=("~/.zshrc에 tarsync 자동완성이 여전히 있습니다")
+    if [ -f "$ZSH_COMPLETION_DIR/_tarsync" ]; then
+        issues+=("ZSH 자동완성 파일이 여전히 존재합니다: $ZSH_COMPLETION_DIR/_tarsync")
     fi
     
     if [ ${#issues[@]} -gt 0 ]; then
@@ -126,8 +119,8 @@ verify_uninstallation() {
     fi
 }
 
-# 사용자 확인
-# User confirmation
+# 사용자 확인 (전역 설치)
+# User confirmation (Global installation)
 confirm_uninstall() {
     echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║          TARSYNC 제거 도구             ║${NC}"
@@ -135,10 +128,12 @@ confirm_uninstall() {
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
     
-    log_warn "다음 항목들이 제거됩니다:"
-    echo "  • tarsync 설치 디렉토리: $PROJECT_DIR"
-    echo "  • PATH 설정 (~/.bashrc, ~/.zshrc)"
-    echo "  • 자동완성 설정 (~/.bashrc, ~/.zshrc)"
+    log_warn "다음 전역 설치 항목들이 제거됩니다:"
+    echo "  • 실행파일: $INSTALL_DIR/tarsync"
+    echo "  • 프로젝트 디렉토리: $PROJECT_DIR"
+    echo "  • 설정 디렉토리: $CONFIG_DIR"
+    echo "  • Bash 자동완성: $COMPLETION_DIR/tarsync"
+    echo "  • ZSH 자동완성: $ZSH_COMPLETION_DIR/_tarsync"
     echo ""
     
     log_info "정말로 tarsync를 제거하시겠습니까? (y/N)"
@@ -152,19 +147,22 @@ confirm_uninstall() {
     fi
 }
 
-# 메인 제거 프로세스
-# Main uninstall process
+# 메인 제거 프로세스 (전역 설치)
+# Main uninstall process (Global installation)
 main() {
+    # sudo 권한 체크
+    check_sudo_privileges
+    
     # 사용자 확인
     confirm_uninstall
     
     echo ""
-    log_info "tarsync 제거를 시작합니다..."
+    log_info "tarsync 전역 설치 제거를 시작합니다..."
     echo ""
     
     # 순차적 제거
     remove_tarsync || {
-        log_error "tarsync 디렉토리 제거에 실패했습니다"
+        log_error "tarsync 파일 제거에 실패했습니다"
         exit 1
     }
     
@@ -177,11 +175,9 @@ main() {
     # 제거 확인
     if verify_uninstallation; then
         echo ""
-        log_success "🎉 tarsync 제거가 완료되었습니다!"
+        log_success "🎉 tarsync 전역 설치 제거가 완료되었습니다!"
         echo ""
-        log_info "💡 변경사항을 적용하려면 새 터미널을 열거나 다음 명령을 실행하세요:"
-        echo "   source ~/.bashrc    # Bash 사용자"
-        echo "   source ~/.zshrc     # ZSH 사용자"
+        log_info "💡 새 터미널을 열면 변경사항이 적용됩니다"
         echo ""
     else
         echo ""
