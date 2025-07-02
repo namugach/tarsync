@@ -18,7 +18,8 @@ setup_version_file() {
     
     # 설치된 환경에서는 다른 경로 확인
     # 1. 개발 환경: 프로젝트/bin/VERSION
-    # 2. 설치 환경: ~/.tarsync/bin/VERSION
+    # 2. 전역 설치: /usr/share/tarsync/VERSION
+    # 3. 사용자 설치: ~/.tarsync/bin/VERSION
     if [ ! -f "$version_file" ]; then
         # 스크립트가 실행되는 위치에서 VERSION 파일 찾기
         local caller_dir="$(dirname "${BASH_SOURCE[1]}")"
@@ -26,6 +27,8 @@ setup_version_file() {
         
         if [ -f "$caller_version" ]; then
             version_file="$caller_version"
+        elif [ -f "/usr/share/tarsync/VERSION" ]; then
+            version_file="/usr/share/tarsync/VERSION"
         elif [ -f "$HOME/.tarsync/bin/VERSION" ]; then
             version_file="$HOME/.tarsync/bin/VERSION"
         fi
