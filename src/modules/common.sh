@@ -142,6 +142,24 @@ EOF
     chmod +x "$meta_file"
 }
 
+# 백업 완료 후 메타데이터에 실제 백업 파일 크기 추가
+update_metadata_backup_size() {
+    local work_dir="$1"
+    local backup_file="$2"
+    
+    local meta_file="$work_dir/meta.sh"
+    local backup_file_size
+    
+    # 백업 파일 크기 계산
+    backup_file_size=$(get_file_size "$backup_file")
+    
+    # META_CREATED 줄 다음에 META_BACKUP_SIZE 추가
+    sed -i "/^META_CREATED=/a\\
+META_BACKUP_SIZE=$backup_file_size" "$meta_file"
+    
+    echo "📦 백업 파일 크기가 메타데이터에 기록되었습니다: $(convert_size "$backup_file_size")"
+}
+
 # 메타데이터 파일 읽기
 load_metadata() {
     local work_dir="$1"

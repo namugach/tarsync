@@ -266,6 +266,10 @@ backup() {
     if execute_backup "$source_path" "$tar_file" "$exclude_options"; then
         echo ""
         
+        # 9.5. 메타데이터에 백업 파일 크기 추가
+        update_metadata_backup_size "$work_dir" "$tar_file"
+        echo ""
+        
         # 10. 백업 결과 출력
         show_backup_result "$store_dir"
         

@@ -180,10 +180,26 @@ print_backups() {
         file_name=$(echo "$file" | awk '{print $4}')
         local backup_dir="$store_dir/$file_name"
         
-        # 디렉토리 크기 계산 - 최적화 버전 (du 명령 한 번만 실행)
+        # 디렉토리 크기 계산 - 메타데이터 기반 최적화 버전
         local size="0B"
         local size_bytes=0
-        if [[ -d "$backup_dir" ]]; then
+        
+        # 메타데이터에서 크기 읽기 시도
+        if load_metadata "$backup_dir" 2>/dev/null; then
+            if [[ -n "$META_BACKUP_SIZE" && "$META_BACKUP_SIZE" -gt 0 ]]; then
+                # 새로운 방식: 메타데이터에서 백업 파일 크기 사용
+                size_bytes="$META_BACKUP_SIZE"
+                size=$(convert_size "$size_bytes")
+            elif [[ -d "$backup_dir" ]]; then
+                # 호환성 fallback: META_BACKUP_SIZE가 없으면 기존 du 방식
+                size_bytes=$(du -sb "$backup_dir" 2>/dev/null | awk '{print $1}')
+                size_bytes=${size_bytes:-0}
+                if [[ $size_bytes -gt 0 ]]; then
+                    size=$(convert_size "$size_bytes")
+                fi
+            fi
+        elif [[ -d "$backup_dir" ]]; then
+            # 메타데이터 로드 실패 시 기존 방식 사용
             size_bytes=$(du -sb "$backup_dir" 2>/dev/null | awk '{print $1}')
             size_bytes=${size_bytes:-0}
             if [[ $size_bytes -gt 0 ]]; then
