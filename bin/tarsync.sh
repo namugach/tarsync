@@ -20,6 +20,37 @@ LIST_MODULE="$PROJECT_ROOT/src/modules/list.sh"
 # 프로그램 이름
 PROGRAM_NAME="tarsync"
 
+# sudo 권한 체크 함수
+check_sudo_privileges() {
+    if [ "$EUID" -ne 0 ]; then
+        echo -e "${RED}❌ 시스템 백업/복구를 위해서는 sudo 권한이 필요합니다${NC}" >&2
+        echo -e "${YELLOW}💡 다음과 같이 실행해주세요: ${WHITE}sudo $PROGRAM_NAME $*${NC}" >&2
+        echo ""
+        echo -e "${CYAN}📖 권한이 필요한 이유:${NC}"
+        echo "  • 시스템 파일 읽기 권한 (/etc, /var, /root 등)"
+        echo "  • 백업 파일 생성 권한"
+        echo "  • 복구 시 원본 권한 복원"
+        echo ""
+        exit 1
+    fi
+}
+
+# 명령어별 sudo 필요 여부 확인
+requires_sudo() {
+    local command="$1"
+    case "$command" in
+        "backup"|"b"|"restore"|"r"|"delete"|"rm"|"d")
+            return 0  # sudo 필요 (쓰기/수정 작업)
+            ;;
+        "list"|"ls"|"l"|"details"|"show"|"info"|"i"|"version"|"v"|"-v"|"--version"|"help"|"h"|"-h"|"--help")
+            return 1  # sudo 불필요 (읽기 전용 작업)
+            ;;
+        *)
+            return 0  # 알 수 없는 명령어는 안전하게 sudo 필요로 처리
+            ;;
+    esac
+}
+
 # 도움말 표시
 show_help() {
     local version=$(get_version)
@@ -183,6 +214,10 @@ cmd_details() {
 # 메인 함수
 main() {
     local command="${1:-help}"
+    
+    if requires_sudo "$command"; then
+        check_sudo_privileges
+    fi
     
     case "$command" in
         "backup"|"b")
