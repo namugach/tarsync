@@ -10,7 +10,10 @@ get_script_dir() {
 # 필요한 유틸리티들 로드
 source "$(get_script_dir)/../utils/format.sh"
 source "$(get_script_dir)/../utils/validation.sh"
-source "$(get_script_dir)/../../config/defaults.sh"
+source "$(get_script_dir)/../utils/config.sh"
+
+# 설정 로드 (config.sh에서 처리)
+load_backup_settings
 
 # shell 명령어 실행 (stdout/stderr 직접 출력) - 기존 $ 함수
 run_command() {
@@ -89,12 +92,12 @@ create_restore_dir() {
 
 # 전체 제외 경로 목록을 tar 옵션 형태로 반환
 get_backup_tar_exclude_options() {
-    get_tar_exclude_options # config/defaults.sh에서 정의된 함수 사용
+    get_tar_exclude_options # src/utils/config.sh에서 정의된 함수 사용
 }
 
 # 전체 제외 경로 목록을 rsync 옵션 형태로 반환
 get_backup_rsync_exclude_options() {
-    get_rsync_exclude_options # config/defaults.sh에서 정의된 함수 사용
+    get_rsync_exclude_options # src/utils/config.sh에서 정의된 함수 사용
 }
 
 # 메타데이터 파일 생성

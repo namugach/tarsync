@@ -1,24 +1,13 @@
 #!/bin/bash
 # tarsync 기본 설정 파일
 # 기존 config.ts에서 변환됨
-
-# 설정 파일에서 백업 디렉토리 읽기
-load_backup_settings() {
-    local settings_file="$HOME/.tarsync/config/settings.env"
-    if [[ -f "$settings_file" ]]; then
-        source "$settings_file"
-        BACKUP_PATH="$BACKUP_DIR"
-    else
-        # 설정 파일이 없으면 기본값 사용
-        BACKUP_PATH="/mnt/backup"
-    fi
-}
-
-# 설정 로드
-load_backup_settings
+# 순수 설정 데이터만 포함 (함수는 src/utils/config.sh로 이동됨)
 
 # 백업 대상 디스크 경로
 BACKUP_DISK="/"
+
+# 기본 백업 경로 (사용자 설정이 없을 때 사용)
+BACKUP_PATH="/mnt/backup"
 
 # 기본 제외 경로 목록
 EXCLUDE_DEFAULT=(
@@ -42,44 +31,4 @@ EXCLUDE_DEFAULT=(
 EXCLUDE_CUSTOM=(
     "/home/user/temp"           # 사용자가 추가로 제외하고 싶은 경로
     "/opt/logs"                 # 다른 사용자 정의 경로
-)
-
-# 전체 제외 경로 목록을 생성하는 함수
-get_exclude_paths() {
-    local paths=()
-    
-    # 백업 경로 자체도 제외
-    paths+=("$BACKUP_PATH")
-    
-    # 기본 제외 경로들 추가
-    for path in "${EXCLUDE_DEFAULT[@]}"; do
-        paths+=("$path")  
-    done
-    
-    # 사용자 정의 제외 경로들 추가
-    for path in "${EXCLUDE_CUSTOM[@]}"; do
-        paths+=("$path")
-    done
-    
-    printf '%s\n' "${paths[@]}"
-}
-
-# tar 옵션 형태로 제외 경로를 생성하는 함수
-get_tar_exclude_options() {
-    local exclude_paths
-    exclude_paths=($(get_exclude_paths))
-    
-    for path in "${exclude_paths[@]}"; do
-        printf -- "--exclude=%s " "$path"
-    done
-}
-
-# rsync 옵션 형태로 제외 경로를 생성하는 함수
-get_rsync_exclude_options() {
-    local exclude_paths
-    exclude_paths=($(get_exclude_paths))
-    
-    for path in "${exclude_paths[@]}"; do
-        printf -- "--exclude=%s " "$path"
-    done
-} 
+) 
