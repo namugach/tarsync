@@ -11,6 +11,7 @@ get_script_dir() {
 source "$(get_script_dir)/../utils/format.sh"
 source "$(get_script_dir)/../utils/validation.sh"
 source "$(get_script_dir)/../utils/config.sh"
+source "$(get_script_dir)/../utils/log.sh"
 
 # 설정 로드 (config.sh에서 처리)
 load_backup_settings
@@ -82,7 +83,18 @@ create_directory() {
 
 # 백업 저장소 디렉토리 생성
 create_store_dir() {
-    create_directory "$(get_store_dir_path)"
+    local store_dir
+    store_dir=$(get_store_dir_path)
+    
+    # 디렉토리가 이미 존재하면 그대로 사용
+    if [[ -d "$store_dir" ]]; then
+        return 0
+    fi
+    
+    echo "📁 백업 저장소 생성 중: $store_dir"
+    
+    # 디렉토리 생성
+    create_directory "$store_dir"
 }
 
 # 복구 작업 디렉토리 생성
