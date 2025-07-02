@@ -108,39 +108,20 @@ print_backup_log() {
     fi
 }
 
-# 백업 상태 체크 (파일 완전성)
+# 백업 상태 체크 (파일 완전성) - 최적화 버전
 check_backup_integrity() {
     local backup_dir="$1"
     local tar_file="$backup_dir/tarsync.tar.gz"
     local meta_file="$backup_dir/meta.sh"
     
-    local status="✅"  # 완전
-    local issues=()
-    
-    if [[ ! -f "$tar_file" ]]; then
-        status="❌"
-        issues+=("백업파일 없음")
+    # 빠른 파일 존재 확인만 수행 (gzip -t 제거로 성능 향상)
+    if [[ -f "$tar_file" && -f "$meta_file" ]]; then
+        echo "✅"
+    elif [[ -f "$tar_file" && ! -f "$meta_file" ]]; then
+        echo "⚠️"
+    else
+        echo "❌"
     fi
-    
-    if [[ ! -f "$meta_file" ]]; then
-        status="⚠️"
-        issues+=("메타데이터 없음")
-    fi
-    
-    # tar 파일 유효성 검사 (간단한 체크)
-    if [[ -f "$tar_file" ]]; then
-        if ! gzip -t "$tar_file" 2>/dev/null; then
-            status="❌"
-            issues+=("파일 손상")
-        fi
-    fi
-    
-    local issue_text=""
-    if [[ ${#issues[@]} -gt 0 ]]; then
-        issue_text=" (${issues[*]})"
-    fi
-    
-    echo "$status$issue_text"
 }
 
 # 백업 목록 출력 메인 함수
@@ -199,13 +180,15 @@ print_backups() {
         file_name=$(echo "$file" | awk '{print $4}')
         local backup_dir="$store_dir/$file_name"
         
-        # 디렉토리 크기 계산
+        # 디렉토리 크기 계산 - 최적화 버전 (du 명령 한 번만 실행)
         local size="0B"
         local size_bytes=0
         if [[ -d "$backup_dir" ]]; then
-            size=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
             size_bytes=$(du -sb "$backup_dir" 2>/dev/null | awk '{print $1}')
             size_bytes=${size_bytes:-0}
+            if [[ $size_bytes -gt 0 ]]; then
+                size=$(convert_size "$size_bytes")
+            fi
         fi
         
         # 로그 파일 존재 여부 확인
