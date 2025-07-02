@@ -98,6 +98,51 @@ execute_backup() {
     fi
 }
 
+# 백업 디렉토리 구조 자동 생성 함수
+ensure_backup_directory_structure() {
+    local backup_path="$BACKUP_PATH"
+    local store_dir="$backup_path/store"
+    local restore_dir="$backup_path/restore"
+    
+    echo "📁 백업 디렉토리 구조 확인 중..."
+    
+    # 백업 루트 디렉토리 생성
+    if [[ ! -d "$backup_path" ]]; then
+        echo "  생성: $backup_path"
+        if ! sudo mkdir -p "$backup_path"; then
+            echo "❌ 백업 디렉토리 생성 실패: $backup_path"
+            return 1
+        fi
+    else
+        echo "  존재: $backup_path ✓"
+    fi
+    
+    # store 디렉토리 생성
+    if [[ ! -d "$store_dir" ]]; then
+        echo "  생성: $store_dir"
+        if ! sudo mkdir -p "$store_dir"; then
+            echo "❌ 백업 저장소 생성 실패: $store_dir"
+            return 1
+        fi
+    else
+        echo "  존재: $store_dir ✓"
+    fi
+    
+    # restore 디렉토리 생성
+    if [[ ! -d "$restore_dir" ]]; then
+        echo "  생성: $restore_dir"
+        if ! sudo mkdir -p "$restore_dir"; then
+            echo "❌ 복구 저장소 생성 실패: $restore_dir"
+            return 1
+        fi
+    else
+        echo "  존재: $restore_dir ✓"
+    fi
+    
+    echo "✅ 백업 디렉토리 구조가 준비되었습니다."
+    return 0
+}
+
 # 백업 결과 출력 (간단 버전)
 show_backup_result() {
     local store_dir="$1"
@@ -141,6 +186,13 @@ backup() {
     local source_path="${1:-$BACKUP_DISK}"
     
     echo "🔍 tarsync 백업 시작..."
+    echo ""
+    
+    # 0. 백업 디렉토리 확인 및 생성
+    if ! ensure_backup_directory_structure; then
+        echo "❌ 백업을 중단합니다."
+        exit 1
+    fi
     echo ""
     
     # 1. 필수 도구 검증
