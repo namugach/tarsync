@@ -4,7 +4,7 @@
 
 # 스크립트 경로 설정
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+export PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # 색상 유틸리티 로드
 source "$PROJECT_ROOT/src/utils/colors.sh"
