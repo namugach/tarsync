@@ -154,29 +154,40 @@ validate_restore_target() {
     echo "$target_path"
 }
 
-# 최종 복구 확인
+# 최종 복구 확인 (선택형 메뉴)
 confirm_restore() {
     local backup_name="$1"
     local target_path="$2"
 
     echo ""
-    echo "⚠️  최종 확인"
+    echo "⚙️  복구 방식을 선택하세요"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "선택된 백업의 내용을 다음 경로에 복구합니다."
-    echo ""
     echo "  - 📦 백업: $backup_name"
     echo "  - 🎯 대상: $target_path"
     echo ""
-    echo "이 작업은 대상 경로의 파일을 덮어쓸 수 있습니다."
-    echo -n "정말로 복구를 진행하시겠습니까? (y/n): "
-    read -r choice
-
-    if [[ "$choice" != "y" && "$choice" != "Y" ]]; then
-        echo "👋 복구를 취소했습니다."
-        return 1
-    fi
+    echo "1️⃣  안전 복구 (기본값)"
+    echo "    기존 파일은 그대로 두고, 백업된 내용만 추가하거나 덮어씁니다."
+    echo "    (일반적인 복구에 권장됩니다.)"
+    echo ""
+    echo "2️⃣  완전 동기화 (⚠️ 주의: 파일 삭제)"
+    echo "    백업 시점과 완전히 동일한 상태로 만듭니다."
+    echo "    대상 폴더에만 존재하는 파일이나 디렉토리는 **삭제**됩니다."
+    echo ""
+    echo "3️⃣  취소"
+    echo "    복구 작업을 중단합니다."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    return 0
+    local choice
+    while true; do
+        read -p "선택 (1-3, 기본값: 1): " choice
+        choice=${choice:-1}
+        case $choice in
+            1) return 0 ;; # 안전 복구
+            2) return 2 ;; # 완전 동기화
+            3) return 1 ;; # 취소
+            *) echo "❌ 잘못된 선택입니다. 1, 2, 3 중에서 선택하세요." ;;
+        esac
+    done
 }
 
 # tar 압축 해제
@@ -203,8 +214,13 @@ execute_rsync() {
     local source_dir="$1"
     local target_dir="$2"
     local exclude_options="$3"
+    local delete_mode="$4" # 삭제 모드 추가
     
     local rsync_options="-avhP --stats"
+    if [[ "$delete_mode" == "true" ]]; then
+        rsync_options+=" --delete"
+        echo "🔥 완전 동기화 모드로 실행합니다. (백업에 없는 파일은 삭제됩니다)"
+    fi
     
     echo ""
     echo "🔄 rsync로 파일 동기화 시작..."
@@ -266,10 +282,20 @@ restore() {
     echo ""
 
     # 5. 최종 확인
-    if ! confirm_restore "$backup_name" "$target_path"; then
+    local confirm_status
+    confirm_restore "$backup_name" "$target_path"
+    confirm_status=$?
+
+    if [[ $confirm_status -eq 1 ]]; then # 1: 취소
+        echo "👋 복구를 취소했습니다."
         exit 1
     fi
     echo ""
+
+    local delete_mode=false
+    if [[ $confirm_status -eq 2 ]]; then # 2: 완전 동기화
+        delete_mode=true
+    fi
 
     # 6. 임시 작업 디렉토리 생성
     local work_dir
@@ -294,7 +320,7 @@ restore() {
         exclude_options="$exclude_options --exclude='$exclude_path'"
     done
 
-    if ! execute_rsync "$work_dir" "$target_path" "$exclude_options"; then
+    if ! execute_rsync "$work_dir" "$target_path" "$exclude_options" "$delete_mode"; then
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
         exit 1
