@@ -224,6 +224,92 @@ execute_rsync() {
     fi
 }
 
+# 경량 시뮬레이션 실행
+light_simulation() {
+    local backup_dir="$1"
+    local target_path="$2"
+    local tar_file="$backup_dir/tarsync.tar.gz"
+    
+    echo "🧪 경량 시뮬레이션 (기본모드)"
+    echo "================================"
+    
+    # 백업 파일 기본 정보
+    local backup_size
+    backup_size=$(get_file_size "$tar_file")
+    echo "📦 백업: $(basename "$backup_dir") ($(convert_size "$backup_size"))"
+    echo "📂 복구 대상: $target_path"
+    
+    # tar 파일 내용 분석
+    echo ""
+    echo "📊 백업 내용 분석 중..."
+    
+    local file_count dir_count total_size
+    file_count=$(tar -tzf "$tar_file" 2>/dev/null | grep -v '/$' | wc -l)
+    dir_count=$(tar -tzf "$tar_file" 2>/dev/null | grep '/$' | wc -l)
+    
+    echo "📄 파일 개수: $(printf "%'d" "$file_count")개"
+    echo "📁 디렉토리 개수: $(printf "%'d" "$dir_count")개"
+    
+    # 주요 디렉토리 구조 표시 (상위 레벨만)
+    echo ""
+    echo "📋 주요 디렉토리 구조:"
+    # 루트부터 주요 디렉토리들 표시
+    tar -tzf "$tar_file" 2>/dev/null | head -20 | grep '/$' | while read -r dir; do
+        # 경로 정리 (앞의 / 제거)
+        clean_dir="${dir#/}"
+        if [[ "$dir" == "/" ]]; then
+            echo "  📁 / (루트 디렉토리)"
+        elif [[ -n "$clean_dir" ]]; then
+            echo "  📁 /$clean_dir"
+        fi
+    done | head -8
+    
+    # 예상 복구 시간 계산 (대략적)
+    local estimated_time_seconds
+    estimated_time_seconds=$((backup_size / 50000000))  # 50MB/s 가정
+    if [[ $estimated_time_seconds -lt 60 ]]; then
+        echo "⏱️  예상 복구 시간: ~${estimated_time_seconds}초"
+    else
+        local estimated_minutes=$((estimated_time_seconds / 60))
+        echo "⏱️  예상 복구 시간: ~${estimated_minutes}분"
+    fi
+    
+    # 대상 경로 공간 확인
+    echo ""
+    echo "💾 저장 공간 확인:"
+    local available_space
+    available_space=$(get_available_space "$target_path")
+    if (( available_space > backup_size )); then
+        echo "✅ 충분한 저장 공간 ($(convert_size "$available_space") 사용 가능)"
+    else
+        echo "⚠️  저장 공간 부족 ($(convert_size "$available_space") 사용 가능, $(convert_size "$backup_size") 필요)"
+        return 1
+    fi
+    
+    echo ""
+    echo "✅ 문제없이 복구 가능합니다!"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "📋 다음 단계 선택"  
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "1️⃣  완전한 검증 (전체 시뮬레이션)"
+    echo "   tarsync restore $(basename "$backup_dir") $target_path full-sim"
+    echo "   💡 압축 해제 + rsync 시뮬레이션으로 정확한 검증"
+    echo ""
+    echo "2️⃣  바로 실제 복구 실행"
+    echo "   tarsync restore $(basename "$backup_dir") $target_path confirm"
+    echo "   ⚠️  실제로 파일이 복구됩니다 (신중하게 선택)"
+    echo ""
+    echo "3️⃣  다른 백업 선택"
+    echo "   tarsync list                    # 다른 백업 목록 보기"
+    echo "   tarsync restore [번호] $target_path   # 다른 백업으로 복구"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    return 0
+}
+
 # 복구 로그 생성
 create_restore_log() {
     local work_dir="$1"
@@ -254,10 +340,28 @@ EOF
 restore() {
     local backup_name="$1"
     local target_path="$2"
-    local dry_run="${3:-true}"      # 기본값: 시뮬레이션 모드
-    local delete_mode="${4:-false}" # 기본값: 삭제 안함
+    local mode="${3:-light}"         # 기본값: 경량 시뮬레이션 모드
+    local delete_mode="${4:-false}"  # 기본값: 삭제 안함
     
     echo "🔄 tarsync 복구 시작..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # 모드별 안내 메시지
+    case "$mode" in
+        "light"|"")
+            echo "📱 모드: 경량 시뮬레이션 (기본값)"
+            echo "💡 빠른 미리보기로 복구 가능성을 확인합니다"
+            ;;
+        "full-sim"|"verify")
+            echo "🔍 모드: 전체 시뮬레이션"
+            echo "💡 실제 복구 과정을 시뮬레이션하여 정확하게 검증합니다"
+            ;;
+        "confirm"|"execute")
+            echo "⚠️  모드: 실제 복구 실행"
+            echo "🚨 주의: 실제로 파일이 복구됩니다!"
+            ;;
+    esac
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     
     # 1. 필수 도구 검증
@@ -284,7 +388,7 @@ restore() {
     echo "✅ 복구 대상: $target_path"
     echo ""
     
-    # 4. 메타데이터 로드
+    # 4. 메타데이터 로드  
     local store_dir backup_dir
     store_dir=$(get_store_dir_path)
     backup_dir="$store_dir/$backup_name"
@@ -299,7 +403,47 @@ restore() {
     echo "✅ 제외 경로: ${#META_EXCLUDE[@]}개"
     echo ""
     
-    # 5. 복구 대상 용량 체크
+    # 5. 모드별 실행
+    case "$mode" in
+        "light"|"")
+            # 경량 시뮬레이션 (기본값)
+            if ! light_simulation "$backup_dir" "$target_path"; then
+                echo "❌ 복구를 중단합니다."
+                exit 1
+            fi
+            return 0
+            ;;
+        "full-sim"|"verify")
+            # 전체 시뮬레이션 (기존 방식)
+            echo "🔄 전체 시뮬레이션 모드로 진행합니다..."
+            echo ""
+            # 전체 시뮬레이션 로직은 아래 계속 실행
+            ;;
+        "confirm"|"execute")
+            # 실제 복구
+            echo "⚠️  실제 복구 모드로 진행합니다!"
+            echo ""
+            # 실제 복구 로직은 아래 계속 실행 (dry_run=false)
+            local dry_run="false"
+            ;;
+        *)
+            # 기본값으로 경량 시뮬레이션
+            echo "⚠️  알 수 없는 모드: $mode. 경량 시뮬레이션으로 진행합니다."
+            if ! light_simulation "$backup_dir" "$target_path"; then
+                echo "❌ 복구를 중단합니다."
+                exit 1
+            fi
+            return 0
+            ;;
+    esac
+    
+    # 전체 시뮬레이션 또는 실제 복구를 위한 준비 작업
+    local dry_run="true"
+    if [[ "$mode" == "confirm" || "$mode" == "execute" ]]; then
+        dry_run="false"
+    fi
+    
+    # 6. 복구 대상 용량 체크
     echo "🔍 복구 대상 용량 확인 중..."
     if ! check_disk_space "$target_path" "$META_SIZE"; then
         echo "❌ 복구를 중단합니다."
@@ -308,7 +452,7 @@ restore() {
     echo "✅ 복구 대상 용량이 충분합니다."
     echo ""
     
-    # 6. 작업 디렉토리 생성
+    # 7. 작업 디렉토리 생성
     local work_dir
     work_dir=$(get_restore_work_dir_path "$backup_name")
     
@@ -318,14 +462,14 @@ restore() {
     echo "✅ 작업 디렉토리: $work_dir"
     echo ""
     
-    # 7. tar 압축 해제
+    # 8. tar 압축 해제
     if ! extract_backup "$backup_dir" "$work_dir"; then
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
     echo ""
     
-    # 8. rsync 동기화 준비
+    # 9. rsync 동기화 준비
     local extract_source_dir="$work_dir"
     
     # 압축 해제된 디렉토리 구조 확인
@@ -345,31 +489,31 @@ restore() {
         echo "📂 압축 해제된 내용: $subdirs_count개 디렉토리/파일" >&2
     fi
     
-    # 9. 제외 경로 옵션 생성
+    # 10. 제외 경로 옵션 생성
     local exclude_options=""
     for exclude_path in "${META_EXCLUDE[@]}"; do
         exclude_options="$exclude_options --exclude='$exclude_path'"
     done
     
-    # 10. rsync 실행
+    # 11. rsync 실행
     if ! execute_rsync "$extract_source_dir" "$target_path" "$dry_run" "$delete_mode" "$exclude_options"; then
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
     echo ""
     
-    # 11. 복구 로그 생성
+    # 12. 복구 로그 생성
     create_restore_log "$work_dir" "$backup_name" "$target_path" "$dry_run" "$delete_mode"
     echo ""
     
-    # 12. 복구 완료
+    # 13. 복구 완료
     echo "🎉 복구가 완료되었습니다!"
     echo "📂 작업 디렉토리: $work_dir"
     echo "📂 복구 대상: $target_path"
     
     if [[ "$dry_run" == "true" ]]; then
         echo "⚠️  시뮬레이션 모드였으므로 실제 파일은 변경되지 않았습니다."
-        echo "   실제 복구를 원한다면 세 번째 매개변수를 'false'로 설정하세요."
+        echo "   실제 복구를 원한다면 'confirm' 모드로 다시 실행하세요."
     fi
     
     return 0
