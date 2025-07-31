@@ -266,6 +266,100 @@ execute_rsync() {
     fi
 }
 
+# 대화형 다음 단계 메뉴
+interactive_next_step_menu() {
+    local backup_name="$1"
+    local target_path="$2"
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🎯 다음 단계를 선택하세요:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "1️⃣  전체 시뮬레이션 (권장)"
+    echo "    압축 해제 + rsync 시뮬레이션으로 정확한 검증"
+    echo ""
+    echo "2️⃣  실제 복구 실행 (주의!)"
+    echo "    ⚠️ 실제로 파일이 복구됩니다"
+    echo ""
+    echo "3️⃣  취소"
+    echo "    복구를 중단하고 종료"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    while true; do
+        echo -n "선택하세요 (1-3): "
+        read -r choice
+        
+        case "$choice" in
+            1)
+                echo ""
+                echo "🔄 전체 시뮬레이션을 시작합니다..."
+                full_sim_restore "$backup_name" "$target_path" "false"
+                
+                # 전체 시뮬레이션 후 최종 확인
+                final_confirmation_menu "$backup_name" "$target_path"
+                return $?
+                ;;
+            2)
+                echo ""
+                echo "🔧 실제 복구를 시작합니다..."
+                execute_restore "$backup_name" "$target_path" "false"
+                return $?
+                ;;
+            3)
+                echo ""
+                echo "👋 복구를 취소했습니다."
+                return 0
+                ;;
+            *)
+                echo "❌ 잘못된 선택입니다. 1-3 중에서 선택해주세요."
+                ;;
+        esac
+    done
+}
+
+# 최종 확인 메뉴 (전체 시뮬레이션 후)
+final_confirmation_menu() {
+    local backup_name="$1"
+    local target_path="$2"
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🎯 최종 단계를 선택하세요:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "1️⃣  실제 복구 실행"
+    echo "    ✅ 시뮬레이션 완료! 실제 파일 복구를 진행합니다"
+    echo ""
+    echo "2️⃣  취소"
+    echo "    복구를 중단하고 종료"
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    while true; do
+        echo -n "선택하세요 (1-2): "
+        read -r choice
+        
+        case "$choice" in
+            1)
+                echo ""
+                echo "🔧 실제 복구를 시작합니다..."
+                execute_restore "$backup_name" "$target_path" "false"
+                return $?
+                ;;
+            2)
+                echo ""
+                echo "👋 복구를 취소했습니다."
+                return 0
+                ;;
+            *)
+                echo "❌ 잘못된 선택입니다. 1-2 중에서 선택해주세요."
+                ;;
+        esac
+    done
+}
+
 # 경량 시뮬레이션 실행
 light_simulation() {
     local backup_dir="$1"
@@ -330,26 +424,17 @@ light_simulation() {
     
     echo ""
     echo "✅ 문제없이 복구 가능합니다!"
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "📋 다음 단계 선택"  
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-    echo "1️⃣  완전한 검증 (전체 시뮬레이션)"
-    echo "   tarsync restore $(basename "$backup_dir") $target_path full-sim"
-    echo "   💡 압축 해제 + rsync 시뮬레이션으로 정확한 검증"
-    echo ""
-    echo "2️⃣  바로 실제 복구 실행"
-    echo "   tarsync restore $(basename "$backup_dir") $target_path confirm"
-    echo "   ⚠️  실제로 파일이 복구됩니다 (신중하게 선택)"
-    echo ""
-    echo "3️⃣  다른 백업 선택"
-    echo "   tarsync list                    # 다른 백업 목록 보기"
-    echo "   tarsync restore [번호] $target_path   # 다른 백업으로 복구"
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
-    return 0
+    # 배치 모드가 아닌 경우에만 대화형 메뉴 표시
+    if [[ "$TARSYNC_BATCH_MODE" != "true" ]]; then
+        interactive_next_step_menu "$(basename "$backup_dir")" "$target_path"
+        return $?
+    else
+        # 배치 모드에서는 기존 방식 유지 (정보만 표시하고 종료)
+        echo ""
+        echo "🤖 배치 모드: 경량 시뮬레이션 완료"
+        return 0
+    fi
 }
 
 # 위험도 평가 시스템
@@ -544,7 +629,60 @@ confirm_restore_operation() {
     return 0
 }
 
-# 복구 전 백업 생성 (롤백 준비)
+# 롤백 확인 대화상자
+ask_rollback_confirmation() {
+    local target_path="$1"
+    local backup_name="$2"
+    
+    # 배치 모드에서는 자동 생성
+    if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
+        echo "🤖 배치 모드: 롤백 백업 자동 생성"
+        return 0
+    fi
+    
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🛡️  롤백 백업 생성 확인"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "복구 실행 전 기존 파일을 백업하여 롤백을 준비합니다."
+    echo ""
+    echo "📂 대상 경로: $target_path"
+    echo "🔄 복구할 백업: $backup_name"
+    echo ""
+    echo "💡 롤백 백업의 장점:"
+    echo "   • 복구 실패 시 원래 상태로 되돌릴 수 있음"
+    echo "   • 복구 후 문제 발생 시 이전 상태 복원 가능"
+    echo "   • 안전한 복구 작업을 위한 보험"
+    echo ""
+    echo "⚠️  주의사항:"
+    echo "   • 추가 디스크 공간이 필요함"
+    echo "   • 대용량 데이터의 경우 시간이 소요됨"
+    echo ""
+    
+    while true; do
+        echo -n "롤백 백업을 생성하시겠습니까? (y/n): "
+        read -r choice
+        
+        case "$choice" in
+            y|yes|Y|YES)
+                echo ""
+                echo "✅ 롤백 백업을 생성합니다."
+                return 0
+                ;;
+            n|no|N|NO)
+                echo ""
+                echo "⚠️  롤백 백업을 건너뜁니다."
+                return 2  # 특별한 반환값으로 건너뛰기 표시
+                ;;
+            *)
+                echo "❌ y(yes) 또는 n(no)를 입력해주세요."
+                ;;
+        esac
+    done
+}
+
+# 복구 전 백업 생성 (롤백 준비) - 개선된 버전
 create_rollback_backup() {
     local target_path="$1"
     local backup_name="$2"
@@ -561,30 +699,149 @@ create_rollback_backup() {
         return 0
     fi
     
-    local rollback_dir="/tmp/tarsync_rollback_$(date +%Y%m%d_%H%M%S)"
+    # 사용자 확인
+    ask_rollback_confirmation "$target_path" "$backup_name"
+    local confirmation_result=$?
     
-    echo "🔄 롤백을 위한 기존 파일 백업 중..."
+    if [ $confirmation_result -eq 2 ]; then
+        # 사용자가 롤백 백업을 건너뛰기로 선택
+        echo "💡 사용자 선택: 롤백 백업 건너뛰기"
+        return 0
+    elif [ $confirmation_result -ne 0 ]; then
+        # 기타 오류
+        return 1
+    fi
+    
+    # 롤백 디렉토리 경로 설정 (개선된 구조)
+    local backup_path="$BACKUP_PATH"
+    local rollback_base_dir="$backup_path/rollback"
+    local rollback_timestamp=$(date +%Y_%m_%d_%p_%H_%M_%S)
+    local rollback_dir="$rollback_base_dir/${rollback_timestamp}__rollback_for__${backup_name}"
+    
+    echo ""
+    echo "🔄 롤백 백업 생성 중..."
     echo "   원본: $target_path"
     echo "   백업: $rollback_dir"
     
-    if mkdir -p "$rollback_dir" && cp -r "$target_path"/* "$rollback_dir/" 2>/dev/null; then
-        echo "✅ 롤백 백업 완료: $rollback_dir"
-        echo "💡 복구 실패 시 다음 명령어로 롤백 가능:"
-        echo "   rm -rf $target_path/* && cp -r $rollback_dir/* $target_path/"
-        
-        # 전역 변수로 롤백 경로 저장
-        ROLLBACK_DIR="$rollback_dir"
-        return 0
-    else
-        echo "⚠️  롤백 백업 생성에 실패했습니다. 계속 진행하시겠습니까? (y/n)"
-        echo -n "확인 입력: "
-        read -r confirmation
-        if [[ "$confirmation" != "y" && "$confirmation" != "yes" ]]; then
-            echo "복구가 취소되었습니다."
-            return 1
-        fi
-        return 0
+    # 롤백 디렉토리 생성
+    if ! mkdir -p "$rollback_dir"; then
+        echo "❌ 롤백 디렉토리 생성 실패: $rollback_dir"
+        return 1
     fi
+    
+    # 파일 개수 계산 (진행률 표시용)
+    echo "📊 백업할 파일 개수 계산 중..."
+    local file_count
+    file_count=$(find "$target_path" -type f 2>/dev/null | wc -l)
+    echo "📄 총 $file_count개 파일을 백업합니다."
+    
+    # pv를 사용한 진행률 표시와 함께 백업
+    echo ""
+    echo "📦 롤백 백업 진행 중..."
+    
+    if command -v pv >/dev/null 2>&1 && [ "$file_count" -gt 100 ]; then
+        # 파일이 많은 경우 pv로 진행률 표시
+        if tar -cf - -C "$target_path" . 2>/dev/null | pv -p -s "$(du -sb "$target_path" 2>/dev/null | cut -f1)" | tar -xf - -C "$rollback_dir" 2>/dev/null; then
+            echo ""
+            echo "✅ 롤백 백업 완료: $rollback_dir"
+        else
+            echo ""
+            echo "❌ pv를 이용한 백업 실패, 일반 복사로 재시도..."
+            # pv 실패시 일반 복사로 폴백
+            if cp -r "$target_path"/* "$rollback_dir/" 2>/dev/null; then
+                echo "✅ 롤백 백업 완료: $rollback_dir"
+            else
+                handle_rollback_failure "$target_path" "$rollback_dir"
+                return $?
+            fi
+        fi
+    else
+        # 파일이 적거나 pv가 없는 경우 일반 복사
+        if cp -r "$target_path"/* "$rollback_dir/" 2>/dev/null; then
+            echo "✅ 롤백 백업 완료: $rollback_dir"
+        else
+            handle_rollback_failure "$target_path" "$rollback_dir"
+            return $?
+        fi
+    fi
+    
+    # 롤백 메타데이터 생성
+    create_rollback_metadata "$rollback_dir" "$target_path" "$backup_name"
+    
+    # 전역 변수로 롤백 경로 저장
+    ROLLBACK_DIR="$rollback_dir"
+    
+    echo ""
+    echo "💡 롤백 정보:"
+    echo "   백업 위치: $rollback_dir"
+    echo "   복구 명령어: tarsync rollback $rollback_timestamp"
+    echo ""
+    
+    return 0
+}
+
+# 롤백 실패 처리
+handle_rollback_failure() {
+    local target_path="$1"
+    local rollback_dir="$2"
+    
+    echo "⚠️  롤백 백업 생성에 실패했습니다."
+    echo ""
+    echo "가능한 원인:"
+    echo "  • 디스크 공간 부족"
+    echo "  • 권한 문제"
+    echo "  • 파일 시스템 오류"
+    echo ""
+    
+    # 실패한 롤백 디렉토리 정리
+    rm -rf "$rollback_dir" 2>/dev/null
+    
+    while true; do
+        echo -n "롤백 백업 없이 복구를 계속 진행하시겠습니까? (y/n): "
+        read -r confirmation
+        
+        case "$confirmation" in
+            y|yes|Y|YES)
+                echo ""
+                echo "⚠️  롤백 백업 없이 복구를 진행합니다."
+                return 0
+                ;;
+            n|no|N|NO)
+                echo ""
+                echo "👋 복구가 취소되었습니다."
+                return 1
+                ;;
+            *)
+                echo "❌ y(yes) 또는 n(no)를 입력해주세요."
+                ;;
+        esac
+    done
+}
+
+# 롤백 메타데이터 생성
+create_rollback_metadata() {
+    local rollback_dir="$1"
+    local original_path="$2"
+    local backup_name="$3"
+    
+    local meta_file="$rollback_dir/rollback_meta.sh"
+    
+    cat > "$meta_file" << EOF
+#!/bin/bash
+# 롤백 메타데이터
+# 이 파일은 tarsync에서 자동 생성됩니다.
+
+ROLLBACK_TIMESTAMP="$(date)"
+ORIGINAL_PATH="$original_path"
+BACKUP_NAME="$backup_name"
+ROLLBACK_DIR="$rollback_dir"
+TARSYNC_VERSION="$(get_version 2>/dev/null || echo "unknown")"
+
+# 사용법:
+# tarsync rollback $(basename "$rollback_dir" | cut -d'_' -f1-6)
+EOF
+    
+    chmod 644 "$meta_file"
 }
 
 # 복구 중단 감지 및 정리
