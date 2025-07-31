@@ -62,9 +62,9 @@ get_backup_name_by_number() {
     
     # 숫자인지 확인
     if [[ "$backup_number" =~ ^[0-9]+$ ]]; then
-        # list 명령과 동일한 정렬 방식 사용 (ls -lthr)
+        # show_backup_list와 동일한 정렬 방식 사용 (find ... | sort -r)
         local backup_list
-        readarray -t backup_list < <(ls -lthr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $9}' | grep -E "^2[0-9]{3}_")
+        readarray -t backup_list < <(find "$store_dir" -maxdepth 1 -type d -name "2*" | sort -r | xargs -n 1 basename)
         
         # 배열 인덱스는 0부터 시작하므로 1을 빼야 함
         local array_index=$((backup_number - 1))
@@ -141,18 +141,47 @@ select_backup() {
     echo "$backup_name"
 }
 
+# log.md에서 원본 소스 경로 추출
+get_original_source_from_log() {
+    local backup_dir="$1"
+    local log_file="$backup_dir/log.md"
+
+    if [[ -f "$log_file" ]]; then
+        grep '^- Source:' "$log_file" | awk -F': ' '{print $2}' | tr -d '[:space:]'
+    else
+        echo ""
+    fi
+}
+
 # 복구 대상 경로 확인
 validate_restore_target() {
     local target_path="$1"
-    
+    local backup_dir="$2" # 백업 디렉토리 경로 추가
+
+    # 로그에서 원본 경로 읽어오기
+    local original_source
+    original_source=$(get_original_source_from_log "$backup_dir")
+
     if [[ -z "$target_path" ]]; then
         if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
             # 배치 모드에서는 기본 경로 사용
             target_path="/tmp/tarsync_restore_$(date +%Y%m%d_%H%M%S)"
             echo "🤖 배치 모드: 기본 복구 경로 사용 - $target_path" >&2
         else
-            echo -n "복구 대상 경로를 입력하세요 (예: /tmp/restore_test): " >&2
+            # 원본 경로를 기본값으로 제안
+            local prompt_message="복구 대상 경로를 입력하세요"
+            if [[ -n "$original_source" ]]; then
+                prompt_message+=" (기본값: $original_source)"
+            fi
+            prompt_message+=": "
+            
+            echo -n "$prompt_message" >&2
             read -r target_path
+
+            # 사용자가 아무것도 입력하지 않으면 원본 경로 사용
+            if [[ -z "$target_path" ]] && [[ -n "$original_source" ]]; then
+                target_path="$original_source"
+            fi
         fi
     fi
     
@@ -975,7 +1004,10 @@ light_restore() {
     # 3. 복구 대상 경로 확인
     explain_step "복구 대상 경로 확인" "파일을 복구할 대상 경로를 확인하고, 해당 경로에 쓰기 권한이 있는지 검증합니다."
     echo "🔍 복구 대상 확인 중..."
-    target_path=$(validate_restore_target "$target_path")
+    local store_dir backup_dir
+    store_dir=$(get_store_dir_path)
+    backup_dir="$store_dir/$backup_name"
+    target_path=$(validate_restore_target "$target_path" "$backup_dir")
     if [[ $? -ne 0 ]]; then
         echo "❌ 복구를 중단합니다."
         exit 1
@@ -1084,7 +1116,10 @@ prepare_restore_common() {
     
     # 3. 복구 대상 경로 확인
     echo "🔍 복구 대상 확인 중..."
-    target_path=$(validate_restore_target "$target_path")
+    local store_dir backup_dir
+    store_dir=$(get_store_dir_path)
+    backup_dir="$store_dir/$backup_name"
+    target_path=$(validate_restore_target "$target_path" "$backup_dir")
     if [[ $? -ne 0 ]]; then
         return 1
     fi
