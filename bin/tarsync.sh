@@ -140,6 +140,8 @@ show_restore_help() {
     echo ""
     echo -e "${YELLOW}추가 옵션:${NC}"
     echo -e "  ${GREEN}--delete${NC}         삭제 모드 (대상에서 원본에 없는 파일 삭제)"
+    echo -e "  ${GREEN}--force${NC}          안전장치 우회 (⚠️ 위험: 확인 절차 생략)"
+    echo -e "  ${GREEN}--no-rollback${NC}    롤백 백업 생성 안함 (더 빠른 실행)"
     echo -e "  ${GREEN}--help, -h${NC}       이 도움말 표시"
     echo ""
     echo -e "${YELLOW}사용 예시:${NC}"
@@ -216,6 +218,16 @@ cmd_restore() {
                 ;;
             --delete)
                 delete_mode="true"
+                shift
+                ;;
+            --force|--skip-confirm)
+                # 안전장치 우회 (위험한 옵션)
+                export TARSYNC_FORCE_MODE="true"
+                shift
+                ;;
+            --no-rollback)
+                # 롤백 백업 생성 안함
+                export TARSYNC_NO_ROLLBACK="true"
                 shift
                 ;;
             --help|-h)

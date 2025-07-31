@@ -310,6 +310,252 @@ light_simulation() {
     return 0
 }
 
+# 위험도 평가 시스템
+assess_restore_risk() {
+    local target_path="$1"
+    local backup_size="$2"
+    local risk_score=0
+    local risk_reasons=()
+    
+    # 1. 경로 위험도 평가
+    case "$target_path" in
+        "/"|"/root"|"/etc"|"/usr"|"/var"|"/bin"|"/sbin")
+            risk_score=$((risk_score + 40))
+            risk_reasons+=("시스템 중요 디렉토리 ($target_path)")
+            ;;
+        "/home"|"/opt"|"/srv")
+            risk_score=$((risk_score + 20))
+            risk_reasons+=("중요 사용자 디렉토리 ($target_path)")
+            ;;
+        "/tmp"|"/var/tmp")
+            risk_score=$((risk_score + 5))
+            risk_reasons+=("임시 디렉토리 ($target_path)")
+            ;;
+        *)
+            if [[ "$target_path" =~ ^/home/[^/]+$ ]]; then
+                risk_score=$((risk_score + 15))
+                risk_reasons+=("사용자 홈 디렉토리 ($target_path)")
+            elif [[ "$target_path" =~ ^/home ]]; then
+                risk_score=$((risk_score + 10))
+                risk_reasons+=("홈 디렉토리 하위 ($target_path)")
+            else
+                risk_score=$((risk_score + 5))
+                risk_reasons+=("일반 디렉토리 ($target_path)")
+            fi
+            ;;
+    esac
+    
+    # 2. 백업 크기 위험도 평가
+    local size_gb=$((backup_size / 1073741824))  # GB 단위
+    if [[ $size_gb -gt 50 ]]; then
+        risk_score=$((risk_score + 30))
+        risk_reasons+=("대용량 백업 (${size_gb}GB)")
+    elif [[ $size_gb -gt 10 ]]; then
+        risk_score=$((risk_score + 15))
+        risk_reasons+=("중용량 백업 (${size_gb}GB)")
+    fi
+    
+    # 3. 기존 파일 존재 여부 확인
+    if [[ -d "$target_path" ]] && [[ -n "$(ls -A "$target_path" 2>/dev/null)" ]]; then
+        risk_score=$((risk_score + 25))
+        risk_reasons+=("기존 파일 덮어쓰기 위험")
+    fi
+    
+    # 4. 권한 확인
+    if [[ ! -w "$(dirname "$target_path")" ]]; then
+        risk_score=$((risk_score + 10))
+        risk_reasons+=("권한 부족 가능성")
+    fi
+    
+    # 위험도 등급 결정
+    local risk_level
+    if [[ $risk_score -ge 80 ]]; then
+        risk_level="CRITICAL"
+    elif [[ $risk_score -ge 60 ]]; then
+        risk_level="HIGH"
+    elif [[ $risk_score -ge 40 ]]; then
+        risk_level="MEDIUM"
+    elif [[ $risk_score -ge 20 ]]; then
+        risk_level="LOW"
+    else
+        risk_level="MINIMAL"
+    fi
+    
+    # 결과 출력
+    echo "🔍 복구 위험도 평가"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "위험도 점수: $risk_score/100"
+    echo "위험도 등급: $risk_level"
+    echo ""
+    echo "위험 요소:"
+    for reason in "${risk_reasons[@]}"; do
+        echo "  ⚠️  $reason"
+    done
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    
+    # 전역 변수로 결과 저장
+    RISK_SCORE="$risk_score"
+    RISK_LEVEL="$risk_level"
+    
+    return 0
+}
+
+# 위험도별 확인 절차
+confirm_restore_operation() {
+    local mode="$1"
+    local target_path="$2"
+    local risk_level="$3"
+    local risk_score="$4"
+    
+    # 시뮬레이션 모드는 위험하지 않음
+    if [[ "$mode" == "light" || "$mode" == "full-sim" ]]; then
+        return 0
+    fi
+    
+    # 강제 모드인 경우 확인 절차 생략
+    if [[ "$TARSYNC_FORCE_MODE" == "true" ]]; then
+        echo "⚠️  강제 모드: 안전장치 확인 절차를 생략합니다."
+        echo "   대상: $target_path"
+        echo "   위험도: $risk_score/100 ($risk_level)"
+        echo ""
+        return 0
+    fi
+    
+    echo "⚠️  실제 복구 확인 절차"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    case "$risk_level" in
+        "CRITICAL")
+            echo "🚨 매우 위험한 복구 작업입니다!"
+            echo "   대상: $target_path"
+            echo "   위험도: $risk_score/100 ($risk_level)"
+            echo ""
+            echo "이 작업은 시스템에 심각한 영향을 줄 수 있습니다."
+            echo "계속 진행하려면 'YES'를 정확히 입력하세요."
+            echo -n "확인 입력: "
+            read -r confirmation
+            if [[ "$confirmation" != "YES" ]]; then
+                echo "복구가 취소되었습니다."
+                return 1
+            fi
+            ;;
+        "HIGH")
+            echo "⚠️  위험한 복구 작업입니다."
+            echo "   대상: $target_path"
+            echo "   위험도: $risk_score/100 ($risk_level)"
+            echo ""
+            echo "이 작업은 중요한 파일을 덮어쓸 수 있습니다."
+            echo "계속 진행하시겠습니까? (yes/no)"
+            echo -n "확인 입력: "
+            read -r confirmation
+            if [[ "$confirmation" != "yes" ]]; then
+                echo "복구가 취소되었습니다."
+                return 1
+            fi
+            ;;
+        "MEDIUM"|"LOW")
+            echo "ℹ️  복구 작업 확인"
+            echo "   대상: $target_path"
+            echo "   위험도: $risk_score/100 ($risk_level)"
+            echo ""
+            echo "계속 진행하시겠습니까? (y/n)"
+            echo -n "확인 입력: "
+            read -r confirmation
+            if [[ "$confirmation" != "y" && "$confirmation" != "yes" ]]; then
+                echo "복구가 취소되었습니다."
+                return 1
+            fi
+            ;;
+        "MINIMAL")
+            echo "✅ 안전한 복구 작업입니다."
+            echo "   대상: $target_path"
+            echo "   위험도: $risk_score/100 ($risk_level)"
+            echo ""
+            echo "자동으로 진행합니다..."
+            sleep 1
+            ;;
+    esac
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    return 0
+}
+
+# 복구 전 백업 생성 (롤백 준비)
+create_rollback_backup() {
+    local target_path="$1"
+    local backup_name="$2"
+    
+    # 롤백 백업 생성 안함 옵션 체크
+    if [[ "$TARSYNC_NO_ROLLBACK" == "true" ]]; then
+        echo "💡 롤백 백업 생성을 건너뜁니다 (--no-rollback 옵션)."
+        return 0
+    fi
+    
+    # 대상 경로가 존재하고 비어있지 않은 경우에만 백업
+    if [[ ! -d "$target_path" ]] || [[ -z "$(ls -A "$target_path" 2>/dev/null)" ]]; then
+        echo "💡 대상 경로가 비어있어 롤백 백업을 건너뜁니다."
+        return 0
+    fi
+    
+    local rollback_dir="/tmp/tarsync_rollback_$(date +%Y%m%d_%H%M%S)"
+    
+    echo "🔄 롤백을 위한 기존 파일 백업 중..."
+    echo "   원본: $target_path"
+    echo "   백업: $rollback_dir"
+    
+    if mkdir -p "$rollback_dir" && cp -r "$target_path"/* "$rollback_dir/" 2>/dev/null; then
+        echo "✅ 롤백 백업 완료: $rollback_dir"
+        echo "💡 복구 실패 시 다음 명령어로 롤백 가능:"
+        echo "   rm -rf $target_path/* && cp -r $rollback_dir/* $target_path/"
+        
+        # 전역 변수로 롤백 경로 저장
+        ROLLBACK_DIR="$rollback_dir"
+        return 0
+    else
+        echo "⚠️  롤백 백업 생성에 실패했습니다. 계속 진행하시겠습니까? (y/n)"
+        echo -n "확인 입력: "
+        read -r confirmation
+        if [[ "$confirmation" != "y" && "$confirmation" != "yes" ]]; then
+            echo "복구가 취소되었습니다."
+            return 1
+        fi
+        return 0
+    fi
+}
+
+# 복구 중단 감지 및 정리
+setup_interrupt_handler() {
+    local work_dir="$1"
+    local rollback_dir="$2"
+    
+    # 중단 시그널 핸들러 설정
+    trap 'handle_restore_interrupt "$work_dir" "$rollback_dir"' INT TERM
+}
+
+# 복구 중단 처리
+handle_restore_interrupt() {
+    local work_dir="$1"
+    local rollback_dir="$2"
+    
+    echo ""
+    echo "🚫 복구 작업이 중단되었습니다."
+    
+    if [[ -n "$rollback_dir" && -d "$rollback_dir" ]]; then
+        echo "💡 롤백 백업이 준비되어 있습니다: $rollback_dir"
+        echo "필요시 수동으로 롤백하세요."
+    fi
+    
+    if [[ -n "$work_dir" && -d "$work_dir" ]]; then
+        echo "🧹 작업 디렉토리 정리 중: $work_dir"
+        rm -rf "$work_dir" 2>/dev/null || true
+    fi
+    
+    echo "복구가 안전하게 중단되었습니다."
+    exit 130
+}
+
 # 복구 로그 생성
 create_restore_log() {
     local work_dir="$1"
@@ -449,6 +695,25 @@ execute_restore() {
         exit 1
     fi
     
+    # 안전장치 시스템 적용
+    backup_name="$RESTORE_BACKUP_NAME"
+    target_path="$RESTORE_TARGET_PATH"
+    
+    # 위험도 평가
+    assess_restore_risk "$target_path" "$META_SIZE"
+    
+    # 확인 절차
+    if ! confirm_restore_operation "confirm" "$target_path" "$RISK_LEVEL" "$RISK_SCORE"; then
+        echo "❌ 복구를 중단합니다."
+        exit 1
+    fi
+    
+    # 롤백 백업 생성
+    if ! create_rollback_backup "$target_path" "$backup_name"; then
+        echo "❌ 복구를 중단합니다."
+        exit 1
+    fi
+    
     # 실제 복구 로직 실행
     execute_restore_process "$backup_name" "$target_path" "false" "$delete_mode"
 }
@@ -514,6 +779,11 @@ execute_restore_process() {
     target_path="$RESTORE_TARGET_PATH"
     local backup_dir="$RESTORE_BACKUP_DIR"
     
+    # 중단 핸들러 설정 (실제 복구인 경우에만)
+    if [[ "$dry_run" == "false" ]]; then
+        setup_interrupt_handler "" "$ROLLBACK_DIR"
+    fi
+    
     # 5. 복구 대상 용량 체크
     echo "🔍 복구 대상 용량 확인 중..."
     if ! check_disk_space "$target_path" "$META_SIZE"; then
@@ -532,6 +802,11 @@ execute_restore_process() {
     create_directory "$work_dir"
     echo "✅ 작업 디렉토리: $work_dir"
     echo ""
+    
+    # 중단 핸들러 업데이트 (work_dir 포함)
+    if [[ "$dry_run" == "false" ]]; then
+        setup_interrupt_handler "$work_dir" "$ROLLBACK_DIR"
+    fi
     
     # 7. tar 압축 해제
     if ! extract_backup "$backup_dir" "$work_dir"; then
