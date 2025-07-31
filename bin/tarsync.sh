@@ -142,6 +142,11 @@ show_restore_help() {
     echo -e "  ${GREEN}--delete${NC}         삭제 모드 (대상에서 원본에 없는 파일 삭제)"
     echo -e "  ${GREEN}--force${NC}          안전장치 우회 (⚠️ 위험: 확인 절차 생략)"
     echo -e "  ${GREEN}--no-rollback${NC}    롤백 백업 생성 안함 (더 빠른 실행)"
+    echo ""
+    echo -e "${YELLOW}고급 옵션:${NC}"
+    echo -e "  ${GREEN}--explain${NC}        학습 모드 (각 단계별 상세 설명)"
+    echo -e "  ${GREEN}--explain-interactive${NC}  대화형 학습 모드 (단계별 일시정지)"
+    echo -e "  ${GREEN}--batch${NC}          배치 모드 (비대화형 자동화)"
     echo -e "  ${GREEN}--help, -h${NC}       이 도움말 표시"
     echo ""
     echo -e "${YELLOW}사용 예시:${NC}"
@@ -150,6 +155,12 @@ show_restore_help() {
     echo "  $PROGRAM_NAME restore backup_name /tmp/restore --full-sim   # 전체 시뮬레이션"
     echo "  $PROGRAM_NAME restore backup_name /tmp/restore --confirm    # 실제 복구"
     echo "  $PROGRAM_NAME restore backup_name /tmp/restore --confirm --delete  # 삭제 모드로 실제 복구"
+    echo ""
+    echo -e "${YELLOW}고급 사용 예시:${NC}"
+    echo "  $PROGRAM_NAME restore --explain                 # 학습 모드로 경량 시뮬레이션"
+    echo "  $PROGRAM_NAME restore --explain-interactive     # 대화형 학습 모드"
+    echo "  $PROGRAM_NAME restore --batch --confirm         # 배치 모드로 자동 복구"
+    echo "  $PROGRAM_NAME restore --batch --force --confirm # 강제 배치 모드 복구"
     echo ""
     echo -e "${YELLOW}하위 호환성:${NC}"
     echo "  $PROGRAM_NAME restore backup_name /tmp/restore true false   # 기존 방식 (전체 시뮬레이션)"
@@ -228,6 +239,23 @@ cmd_restore() {
             --no-rollback)
                 # 롤백 백업 생성 안함
                 export TARSYNC_NO_ROLLBACK="true"
+                shift
+                ;;
+            --explain|--learn)
+                # 학습 모드: 각 단계별 상세 설명
+                export TARSYNC_EXPLAIN_MODE="true"
+                shift
+                ;;
+            --explain-interactive)
+                # 대화형 학습 모드: 단계별 일시정지
+                export TARSYNC_EXPLAIN_MODE="true"
+                export TARSYNC_EXPLAIN_INTERACTIVE="true"
+                shift
+                ;;
+            --batch)
+                # 배치 모드: 비대화형 자동화
+                export TARSYNC_BATCH_MODE="true"
+                export TARSYNC_NO_ROLLBACK="true"  # 배치에서는 기본적으로 롤백 안함
                 shift
                 ;;
             --help|-h)

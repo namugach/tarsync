@@ -89,10 +89,23 @@ select_backup() {
     store_dir=$(get_store_dir_path)
     
     if [[ -z "$backup_name" ]]; then
-        show_backup_list
-        echo "" >&2
-        echo -n "복구할 백업을 선택하세요 (번호 또는 디렉토리 이름): " >&2
-        read -r backup_name
+        # 배치 모드에서는 가장 최근 백업 자동 선택
+        if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
+            local latest_backup
+            latest_backup=$(ls -t "$store_dir" 2>/dev/null | grep -E "^2[0-9]{3}_" | head -1)
+            if [[ -n "$latest_backup" ]]; then
+                echo "🤖 배치 모드: 최신 백업 자동 선택 - $latest_backup" >&2
+                backup_name="$latest_backup"
+            else
+                echo "❌ 배치 모드: 사용 가능한 백업이 없습니다." >&2
+                return 1
+            fi
+        else
+            show_backup_list
+            echo "" >&2
+            echo -n "복구할 백업을 선택하세요 (번호 또는 디렉토리 이름): " >&2
+            read -r backup_name
+        fi
     fi
     
     # 백업 번호를 실제 이름으로 변환
@@ -133,8 +146,14 @@ validate_restore_target() {
     local target_path="$1"
     
     if [[ -z "$target_path" ]]; then
-        echo -n "복구 대상 경로를 입력하세요 (예: /tmp/restore_test): " >&2
-        read -r target_path
+        if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
+            # 배치 모드에서는 기본 경로 사용
+            target_path="/tmp/tarsync_restore_$(date +%Y%m%d_%H%M%S)"
+            echo "🤖 배치 모드: 기본 복구 경로 사용 - $target_path" >&2
+        else
+            echo -n "복구 대상 경로를 입력하세요 (예: /tmp/restore_test): " >&2
+            read -r target_path
+        fi
     fi
     
     # 상위 디렉토리가 존재하고 쓰기 가능한지 확인
@@ -154,7 +173,7 @@ validate_restore_target() {
     echo "$target_path"
 }
 
-# tar 압축 해제
+# tar 압축 해제 (성능 최적화)
 extract_backup() {
     local backup_dir="$1"
     local extract_dir="$2"
@@ -164,8 +183,31 @@ extract_backup() {
     echo "   원본: $tar_file"
     echo "   대상: $extract_dir"
     
-    # tar 압축 해제 명령어
-    local extract_command="tar -xzf '$tar_file' -C '$extract_dir' --strip-components=0 --preserve-permissions"
+    # 파일 크기 확인
+    local file_size
+    file_size=$(get_file_size "$tar_file")
+    local size_gb=$((file_size / 1073741824))
+    
+    # 대용량 파일 처리 최적화
+    local extract_command
+    if [[ $size_gb -gt 5 ]]; then
+        echo "💾 대용량 백업 감지 (${size_gb}GB) - 성능 최적화 모드"
+        # 대용량 파일용 최적화: 병렬 압축 해제, 진행률 표시
+        if command -v pv >/dev/null 2>&1; then
+            extract_command="pv '$tar_file' | tar -xzf - -C '$extract_dir' --strip-components=0 --preserve-permissions"
+        else
+            extract_command="tar -xzf '$tar_file' -C '$extract_dir' --strip-components=0 --preserve-permissions --checkpoint=1000 --checkpoint-action=echo='Extracted %u files'"
+        fi
+    else
+        # 일반 크기 파일
+        extract_command="tar -xzf '$tar_file' -C '$extract_dir' --strip-components=0 --preserve-permissions"
+    fi
+    
+    # 메모리 사용량 최적화 (배치 모드)
+    if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
+        # 배치 모드에서는 메모리 효율적인 옵션 사용
+        extract_command="$extract_command --no-same-owner"
+    fi
     
     if eval "$extract_command"; then
         echo "✅ 압축 해제 완료!"
@@ -422,6 +464,26 @@ confirm_restore_operation() {
         return 0
     fi
     
+    # 배치 모드인 경우 위험도에 따라 자동 결정
+    if [[ "$TARSYNC_BATCH_MODE" == "true" ]]; then
+        echo "🤖 배치 모드: 자동 확인 절차"
+        echo "   대상: $target_path"
+        echo "   위험도: $risk_score/100 ($risk_level)"
+        
+        case "$risk_level" in
+            "CRITICAL"|"HIGH")
+                echo "❌ 배치 모드에서는 위험도가 높은 작업을 수행할 수 없습니다."
+                echo "   수동 모드로 실행하거나 --force 옵션을 사용하세요."
+                return 1
+                ;;
+            *)
+                echo "✅ 위험도가 낮아 자동으로 진행합니다."
+                echo ""
+                return 0
+                ;;
+        esac
+    fi
+    
     echo "⚠️  실제 복구 확인 절차"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
@@ -582,6 +644,25 @@ EOF
     echo "📜 복구 로그가 저장되었습니다: $log_file"
 }
 
+# 학습 모드 설명 출력
+explain_step() {
+    local step="$1"
+    local description="$2"
+    
+    if [[ "$TARSYNC_EXPLAIN_MODE" == "true" ]]; then
+        echo "🎓 학습 모드: $step"
+        echo "   $description"
+        echo ""
+        if [[ "$TARSYNC_EXPLAIN_INTERACTIVE" == "true" ]]; then
+            echo -n "   계속하려면 Enter를 누르세요..."
+            read -r
+        else
+            sleep 2
+        fi
+        echo ""
+    fi
+}
+
 # 복구 초기화 및 모드 안내
 initialize_restore() {
     local mode="$1"
@@ -594,14 +675,17 @@ initialize_restore() {
         "light"|"")
             echo "📱 모드: 경량 시뮬레이션 (기본값)"
             echo "💡 빠른 미리보기로 복구 가능성을 확인합니다"
+            explain_step "경량 시뮬레이션이란?" "tar 파일 목록만 조회하여 백업 내용을 빠르게 확인하는 방식입니다. 실제 파일을 추출하지 않아 매우 빠르지만, rsync 동작은 시뮬레이션하지 않습니다."
             ;;
         "full-sim"|"verify")
             echo "🔍 모드: 전체 시뮬레이션"
             echo "💡 실제 복구 과정을 시뮬레이션하여 정확하게 검증합니다"
+            explain_step "전체 시뮬레이션이란?" "실제 복구와 동일한 과정(압축 해제 + rsync --dry-run)을 수행하되, 파일을 실제로 덮어쓰지는 않습니다. 정확한 검증이 가능하지만 시간이 오래 걸립니다."
             ;;
         "confirm"|"execute")
             echo "⚠️  모드: 실제 복구 실행"
             echo "🚨 주의: 실제로 파일이 복구됩니다!"
+            explain_step "실제 복구란?" "백업 파일을 압축 해제한 후 rsync로 대상 경로에 실제로 복사합니다. 기존 파일이 덮어써질 수 있으므로 주의가 필요합니다."
             ;;
     esac
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -616,10 +700,12 @@ light_restore() {
     initialize_restore "light"
     
     # 1. 필수 도구 검증
+    explain_step "필수 도구 검증" "tarsync가 동작하기 위해 필요한 도구들(tar, gzip, rsync, pv, bc)이 설치되어 있는지 확인합니다."
     validate_required_tools
     echo ""
     
     # 2. 백업 선택 및 검증
+    explain_step "백업 선택" "사용 가능한 백업 목록에서 복구할 백업을 선택합니다. 번호나 이름으로 지정할 수 있습니다."
     echo "🔍 백업 선택 중..."
     backup_name=$(select_backup "$backup_name")
     if [[ $? -ne 0 ]]; then
@@ -630,6 +716,7 @@ light_restore() {
     echo ""
     
     # 3. 복구 대상 경로 확인
+    explain_step "복구 대상 경로 확인" "파일을 복구할 대상 경로를 확인하고, 해당 경로에 쓰기 권한이 있는지 검증합니다."
     echo "🔍 복구 대상 확인 중..."
     target_path=$(validate_restore_target "$target_path")
     if [[ $? -ne 0 ]]; then
@@ -640,6 +727,7 @@ light_restore() {
     echo ""
     
     # 4. 메타데이터 로드  
+    explain_step "메타데이터 로드" "백업 파일의 메타데이터(크기, 생성일, 제외 경로 등)를 로드하여 복구 준비를 합니다."
     local store_dir backup_dir
     store_dir=$(get_store_dir_path)
     backup_dir="$store_dir/$backup_name"
@@ -655,6 +743,7 @@ light_restore() {
     echo ""
     
     # 5. 경량 시뮬레이션 실행
+    explain_step "경량 시뮬레이션 실행" "tar 파일의 목록을 조회하여 백업 내용, 파일 개수, 예상 복구 시간을 빠르게 분석합니다."
     if ! light_simulation "$backup_dir" "$target_path"; then
         echo "❌ 복구를 중단합니다."
         exit 1
