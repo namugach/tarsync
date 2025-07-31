@@ -54,6 +54,34 @@ show_backup_list() {
     echo "====================" >&2
 }
 
+# 백업 번호를 실제 백업 이름으로 변환
+get_backup_name_by_number() {
+    local backup_number="$1"
+    local store_dir
+    store_dir=$(get_store_dir_path)
+    
+    # 숫자인지 확인
+    if [[ "$backup_number" =~ ^[0-9]+$ ]]; then
+        # list 명령과 동일한 정렬 방식 사용 (ls -lthr)
+        local backup_list
+        readarray -t backup_list < <(ls -lthr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $9}' | grep -E "^2[0-9]{3}_")
+        
+        # 배열 인덱스는 0부터 시작하므로 1을 빼야 함
+        local array_index=$((backup_number - 1))
+        
+        if [[ $array_index -ge 0 && $array_index -lt ${#backup_list[@]} ]]; then
+            echo "${backup_list[$array_index]}"
+            return 0
+        else
+            return 1
+        fi
+    else
+        # 숫자가 아니면 그대로 반환
+        echo "$backup_number"
+        return 0
+    fi
+}
+
 # 백업 선택 및 유효성 확인
 select_backup() {
     local backup_name="$1"
@@ -63,9 +91,20 @@ select_backup() {
     if [[ -z "$backup_name" ]]; then
         show_backup_list
         echo "" >&2
-        echo -n "복구할 백업을 선택하세요 (디렉토리 이름): " >&2
+        echo -n "복구할 백업을 선택하세요 (번호 또는 디렉토리 이름): " >&2
         read -r backup_name
     fi
+    
+    # 백업 번호를 실제 이름으로 변환
+    local actual_backup_name
+    actual_backup_name=$(get_backup_name_by_number "$backup_name")
+    
+    if [[ -z "$actual_backup_name" ]]; then
+        echo "❌ 백업 번호 $backup_name에 해당하는 백업을 찾을 수 없습니다." >&2
+        return 1
+    fi
+    
+    backup_name="$actual_backup_name"
     
     local backup_dir="$store_dir/$backup_name"
     
