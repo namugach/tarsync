@@ -199,8 +199,11 @@ extract_backup() {
     echo "📦 백업 파일 압축 해제 중..."
     echo "   - 원본: $tar_file"
     echo "   - 대상: $extract_dir"
+    echo "   - 파일 크기: $(get_path_size_formatted "$tar_file")"
+    echo ""
     
-    if ! tar -xzf "$tar_file" -C "$extract_dir" --strip-components=0 --preserve-permissions; then
+    # pv를 사용한 진행률 표시와 함께 압축 해제
+    if ! pv "$tar_file" | tar -xz -C "$extract_dir" --strip-components=0 --preserve-permissions; then
         echo "❌ 압축 해제에 실패했습니다."
         return 1
     fi
@@ -227,6 +230,12 @@ execute_rsync() {
     echo "   - 원본: $source_dir/"
     echo "   - 대상: $target_dir/"
     echo "   - 제외 경로: ${#exclude_array_ref[@]}개"
+    
+    # 동기화할 파일 수와 크기 미리 계산
+    local file_count
+    file_count=$(find "$source_dir" -type f | wc -l)
+    echo "   - 처리 대상: 약 $file_count개 파일"
+    echo ""
     
     if ! rsync $rsync_options "${exclude_array_ref[@]}" "$source_dir/" "$target_dir/"; then
         echo "❌ 파일 동기화에 실패했습니다."
