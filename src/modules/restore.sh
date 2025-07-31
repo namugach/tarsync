@@ -336,12 +336,9 @@ EOF
     echo "📜 복구 로그가 저장되었습니다: $log_file"
 }
 
-# 메인 복구 함수
-restore() {
-    local backup_name="$1"
-    local target_path="$2"
-    local mode="${3:-light}"         # 기본값: 경량 시뮬레이션 모드
-    local delete_mode="${4:-false}"  # 기본값: 삭제 안함
+# 복구 초기화 및 모드 안내
+initialize_restore() {
+    local mode="$1"
     
     echo "🔄 tarsync 복구 시작..."
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -363,6 +360,14 @@ restore() {
     esac
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
+}
+
+# 경량 복구 실행 (경량 시뮬레이션만)
+light_restore() {
+    local backup_name="$1"
+    local target_path="$2"
+    
+    initialize_restore "light"
     
     # 1. 필수 도구 검증
     validate_required_tools
@@ -403,47 +408,113 @@ restore() {
     echo "✅ 제외 경로: ${#META_EXCLUDE[@]}개"
     echo ""
     
-    # 5. 모드별 실행
-    case "$mode" in
-        "light"|"")
-            # 경량 시뮬레이션 (기본값)
-            if ! light_simulation "$backup_dir" "$target_path"; then
-                echo "❌ 복구를 중단합니다."
-                exit 1
-            fi
-            return 0
-            ;;
-        "full-sim"|"verify")
-            # 전체 시뮬레이션 (기존 방식)
-            echo "🔄 전체 시뮬레이션 모드로 진행합니다..."
-            echo ""
-            # 전체 시뮬레이션 로직은 아래 계속 실행
-            ;;
-        "confirm"|"execute")
-            # 실제 복구
-            echo "⚠️  실제 복구 모드로 진행합니다!"
-            echo ""
-            # 실제 복구 로직은 아래 계속 실행 (dry_run=false)
-            local dry_run="false"
-            ;;
-        *)
-            # 기본값으로 경량 시뮬레이션
-            echo "⚠️  알 수 없는 모드: $mode. 경량 시뮬레이션으로 진행합니다."
-            if ! light_simulation "$backup_dir" "$target_path"; then
-                echo "❌ 복구를 중단합니다."
-                exit 1
-            fi
-            return 0
-            ;;
-    esac
-    
-    # 전체 시뮬레이션 또는 실제 복구를 위한 준비 작업
-    local dry_run="true"
-    if [[ "$mode" == "confirm" || "$mode" == "execute" ]]; then
-        dry_run="false"
+    # 5. 경량 시뮬레이션 실행
+    if ! light_simulation "$backup_dir" "$target_path"; then
+        echo "❌ 복구를 중단합니다."
+        exit 1
     fi
     
-    # 6. 복구 대상 용량 체크
+    return 0
+}
+
+# 전체 시뮬레이션 복구 실행
+full_sim_restore() {
+    local backup_name="$1"
+    local target_path="$2"
+    local delete_mode="$3"
+    
+    initialize_restore "full-sim"
+    
+    # 공통 준비 작업 실행
+    if ! prepare_restore_common "$backup_name" "$target_path"; then
+        echo "❌ 복구를 중단합니다."
+        exit 1
+    fi
+    
+    # 전체 시뮬레이션 로직 실행
+    execute_restore_process "$backup_name" "$target_path" "true" "$delete_mode"
+}
+
+# 실제 복구 실행
+execute_restore() {
+    local backup_name="$1"
+    local target_path="$2"
+    local delete_mode="$3"
+    
+    initialize_restore "confirm"
+    
+    # 공통 준비 작업 실행
+    if ! prepare_restore_common "$backup_name" "$target_path"; then
+        echo "❌ 복구를 중단합니다."
+        exit 1
+    fi
+    
+    # 실제 복구 로직 실행
+    execute_restore_process "$backup_name" "$target_path" "false" "$delete_mode"
+}
+
+# 복구 공통 준비 작업
+prepare_restore_common() {
+    local backup_name="$1"
+    local target_path="$2"
+    
+    # 1. 필수 도구 검증
+    validate_required_tools
+    echo ""
+    
+    # 2. 백업 선택 및 검증
+    echo "🔍 백업 선택 중..."
+    backup_name=$(select_backup "$backup_name")
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    echo "✅ 백업 선택됨: $backup_name"
+    echo ""
+    
+    # 3. 복구 대상 경로 확인
+    echo "🔍 복구 대상 확인 중..."
+    target_path=$(validate_restore_target "$target_path")
+    if [[ $? -ne 0 ]]; then
+        return 1
+    fi
+    echo "✅ 복구 대상: $target_path"
+    echo ""
+    
+    # 4. 메타데이터 로드  
+    local store_dir backup_dir
+    store_dir=$(get_store_dir_path)
+    backup_dir="$store_dir/$backup_name"
+    
+    echo "📄 메타데이터 로드 중..."
+    if ! load_metadata "$backup_dir"; then
+        return 1
+    fi
+    echo "✅ 백업 크기: $(convert_size "$META_SIZE")"
+    echo "✅ 백업 날짜: $META_CREATED"
+    echo "✅ 제외 경로: ${#META_EXCLUDE[@]}개"
+    echo ""
+    
+    # 전역 변수로 결과 반환 (서브셸 문제 해결)
+    RESTORE_BACKUP_NAME="$backup_name"
+    RESTORE_TARGET_PATH="$target_path"
+    RESTORE_BACKUP_DIR="$backup_dir"
+    
+    return 0
+}
+
+# 복구 프로세스 실행 (전체 시뮬레이션 또는 실제 복구)
+execute_restore_process() {
+    local backup_name="$1"
+    local target_path="$2"
+    local dry_run="$3"
+    local delete_mode="$4"
+    
+    # prepare_restore_common에서 설정한 전역 변수 사용
+    backup_name="$RESTORE_BACKUP_NAME"
+    target_path="$RESTORE_TARGET_PATH"
+    local backup_dir="$RESTORE_BACKUP_DIR"
+    
+    # 5. 복구 대상 용량 체크
     echo "🔍 복구 대상 용량 확인 중..."
     if ! check_disk_space "$target_path" "$META_SIZE"; then
         echo "❌ 복구를 중단합니다."
@@ -452,7 +523,7 @@ restore() {
     echo "✅ 복구 대상 용량이 충분합니다."
     echo ""
     
-    # 7. 작업 디렉토리 생성
+    # 6. 작업 디렉토리 생성
     local work_dir
     work_dir=$(get_restore_work_dir_path "$backup_name")
     
@@ -462,18 +533,17 @@ restore() {
     echo "✅ 작업 디렉토리: $work_dir"
     echo ""
     
-    # 8. tar 압축 해제
+    # 7. tar 압축 해제
     if ! extract_backup "$backup_dir" "$work_dir"; then
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
     echo ""
     
-    # 9. rsync 동기화 준비
+    # 8. rsync 동기화 준비
     local extract_source_dir="$work_dir"
     
     # 압축 해제된 디렉토리 구조 확인
-    # 백업 원본이 루트(/) 전체인 경우 vs 특정 디렉토리인 경우를 구분
     local subdirs_count
     subdirs_count=$(find "$work_dir" -maxdepth 1 -type d ! -path "$work_dir" | wc -l)
     
@@ -489,24 +559,24 @@ restore() {
         echo "📂 압축 해제된 내용: $subdirs_count개 디렉토리/파일" >&2
     fi
     
-    # 10. 제외 경로 옵션 생성
+    # 9. 제외 경로 옵션 생성
     local exclude_options=""
     for exclude_path in "${META_EXCLUDE[@]}"; do
         exclude_options="$exclude_options --exclude='$exclude_path'"
     done
     
-    # 11. rsync 실행
+    # 10. rsync 실행
     if ! execute_rsync "$extract_source_dir" "$target_path" "$dry_run" "$delete_mode" "$exclude_options"; then
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
     echo ""
     
-    # 12. 복구 로그 생성
+    # 11. 복구 로그 생성
     create_restore_log "$work_dir" "$backup_name" "$target_path" "$dry_run" "$delete_mode"
     echo ""
     
-    # 13. 복구 완료
+    # 12. 복구 완료
     echo "🎉 복구가 완료되었습니다!"
     echo "📂 작업 디렉토리: $work_dir"
     echo "📂 복구 대상: $target_path"
@@ -517,6 +587,32 @@ restore() {
     fi
     
     return 0
+}
+
+# 메인 복구 함수 (라우터 역할)
+restore() {
+    local backup_name="$1"
+    local target_path="$2"
+    local mode="${3:-light}"         # 기본값: 경량 시뮬레이션 모드
+    local delete_mode="${4:-false}"  # 기본값: 삭제 안함
+    
+    # 모드별 적절한 함수 호출
+    case "$mode" in
+        "light"|"")
+            light_restore "$backup_name" "$target_path"
+            ;;
+        "full-sim"|"verify")
+            full_sim_restore "$backup_name" "$target_path" "$delete_mode"
+            ;;
+        "confirm"|"execute")
+            execute_restore "$backup_name" "$target_path" "$delete_mode"
+            ;;
+        *)
+            # 알 수 없는 모드는 경량 시뮬레이션으로 처리
+            echo "⚠️  알 수 없는 모드: $mode. 경량 시뮬레이션으로 진행합니다."
+            light_restore "$backup_name" "$target_path"
+            ;;
+    esac
 }
 
 # 스크립트가 직접 실행된 경우

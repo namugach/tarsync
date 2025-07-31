@@ -73,10 +73,12 @@ show_help() {
     echo "  $PROGRAM_NAME backup                    # 루트(/) 전체 백업"
     echo "  $PROGRAM_NAME backup /home/user         # 특정 디렉토리 백업"
     echo ""
-    echo -e "${YELLOW}복구 예시:${NC}"
-    echo "  $PROGRAM_NAME restore                   # 대화형 복구 (시뮬레이션)"
-    echo "  $PROGRAM_NAME restore backup_name /tmp/restore false  # 실제 복구"
-    echo "  $PROGRAM_NAME restore backup_name /tmp/restore true true  # 삭제모드 시뮬레이션"
+    echo -e "${YELLOW}복구 예시 (3단계 시스템):${NC}"
+    echo "  $PROGRAM_NAME restore                   # 대화형 경량 시뮬레이션"
+    echo "  $PROGRAM_NAME restore 1 /tmp/restore    # 1번 백업 경량 시뮬레이션"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore --full-sim  # 전체 시뮬레이션"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore --confirm   # 실제 복구"
+    echo "  $PROGRAM_NAME restore --help            # 복구 전용 도움말"
     echo ""
     echo -e "${YELLOW}목록 예시:${NC}"
     echo "  $PROGRAM_NAME list                      # 전체 백업 목록"
@@ -87,10 +89,14 @@ show_help() {
     echo "  $PROGRAM_NAME delete backup_name        # 백업 삭제"
     echo "  $PROGRAM_NAME details backup_name       # 백업 상세 정보"
     echo ""
-    echo -e "${YELLOW}복구 옵션:${NC}"
+    echo -e "${YELLOW}복구 옵션 (새로운 방식):${NC}"
+    echo "  [백업명] [대상경로] [모드옵션] [추가옵션]"
+    echo "  모드: --light(기본값) | --full-sim | --confirm"
+    echo "  추가옵션: --delete (삭제 모드)"
+    echo ""
+    echo -e "${YELLOW}하위 호환성 (기존 방식):${NC}"
     echo "  [백업명] [대상경로] [시뮬레이션] [삭제모드]"
-    echo "  시뮬레이션: true(기본값) | false"
-    echo "  삭제모드: false(기본값) | true"
+    echo "  시뮬레이션: true(전체시뮬) | false(실제복구)"
 }
 
 # 버전 정보 표시
@@ -113,6 +119,44 @@ show_version() {
     echo ""
     echo "Copyright (c) $(date +%Y)"
     echo "MIT License"
+}
+
+# 복구 명령어 도움말 표시
+show_restore_help() {
+    echo -e "${CYAN}tarsync restore - 3단계 복구 시스템${NC}"
+    echo ""
+    echo -e "${YELLOW}사용법:${NC}"
+    echo "  $PROGRAM_NAME restore [백업명] [대상경로] [옵션들]"
+    echo ""
+    echo -e "${YELLOW}복구 모드:${NC}"
+    echo -e "  ${GREEN}--light${NC}          경량 시뮬레이션 (기본값)"
+    echo "                   빠른 미리보기로 복구 가능성 확인"
+    echo ""
+    echo -e "  ${GREEN}--full-sim${NC}       전체 시뮬레이션"
+    echo -e "  ${GREEN}--verify${NC}         압축 해제 + rsync 시뮬레이션으로 정확한 검증"
+    echo ""
+    echo -e "  ${GREEN}--confirm${NC}        실제 복구 실행"
+    echo -e "  ${GREEN}--execute${NC}        실제로 파일이 복구됩니다 (신중하게 사용)"
+    echo ""
+    echo -e "${YELLOW}추가 옵션:${NC}"
+    echo -e "  ${GREEN}--delete${NC}         삭제 모드 (대상에서 원본에 없는 파일 삭제)"
+    echo -e "  ${GREEN}--help, -h${NC}       이 도움말 표시"
+    echo ""
+    echo -e "${YELLOW}사용 예시:${NC}"
+    echo "  $PROGRAM_NAME restore                           # 대화형 경량 시뮬레이션"
+    echo "  $PROGRAM_NAME restore 1 /tmp/restore            # 1번 백업을 경량 시뮬레이션"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore --full-sim   # 전체 시뮬레이션"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore --confirm    # 실제 복구"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore --confirm --delete  # 삭제 모드로 실제 복구"
+    echo ""
+    echo -e "${YELLOW}하위 호환성:${NC}"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore true false   # 기존 방식 (전체 시뮬레이션)"
+    echo "  $PROGRAM_NAME restore backup_name /tmp/restore false        # 기존 방식 (실제 복구)"
+    echo ""
+    echo -e "${YELLOW}3단계 복구 시스템:${NC}"
+    echo "  1️⃣  경량 시뮬레이션: tar 목록 조회로 빠른 확인"
+    echo "  2️⃣  전체 시뮬레이션: 압축 해제 + rsync --dry-run"
+    echo "  3️⃣  실제 복구: 파일 실제 복구 실행"
 }
 
 # 모듈 존재 확인
@@ -150,10 +194,68 @@ cmd_backup() {
 
 # 복구 명령어 처리
 cmd_restore() {
-    local backup_name="$1"
-    local target_path="$2"
-    local dry_run="${3:-true}"
-    local delete_mode="${4:-false}"
+    local backup_name=""
+    local target_path=""
+    local mode="light"  # 기본값: 경량 시뮬레이션
+    local delete_mode="false"
+    
+    # 인수 파싱
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --light)
+                mode="light"
+                shift
+                ;;
+            --full-sim|--verify)
+                mode="full-sim"
+                shift
+                ;;
+            --confirm|--execute)
+                mode="confirm"
+                shift
+                ;;
+            --delete)
+                delete_mode="true"
+                shift
+                ;;
+            --help|-h)
+                show_restore_help
+                return 0
+                ;;
+            -*)
+                echo -e "${RED}❌ 알 수 없는 옵션: $1${NC}" >&2
+                echo "   도움말: $PROGRAM_NAME restore --help"
+                exit 1
+                ;;
+            *)
+                if [[ -z "$backup_name" ]]; then
+                    backup_name="$1"
+                elif [[ -z "$target_path" ]]; then
+                    target_path="$1"
+                else
+                    # 하위 호환성을 위한 기존 방식 지원
+                    # 세 번째 인수가 true/false인 경우 기존 dry_run 방식으로 처리
+                    if [[ "$1" == "true" || "$1" == "false" ]]; then
+                        if [[ "$1" == "true" ]]; then
+                            mode="full-sim"  # 기존 dry_run=true는 전체 시뮬레이션으로 매핑
+                        else
+                            mode="confirm"   # 기존 dry_run=false는 실제 복구로 매핑
+                        fi
+                        shift
+                        if [[ $# -gt 0 && ("$1" == "true" || "$1" == "false") ]]; then
+                            delete_mode="$1"
+                        fi
+                        break
+                    else
+                        echo -e "${RED}❌ 너무 많은 인수입니다: $1${NC}" >&2
+                        echo "   사용법: $PROGRAM_NAME restore [백업명] [대상경로] [옵션들]"
+                        exit 1
+                    fi
+                fi
+                shift
+                ;;
+        esac
+    done
     
     echo -e "${BLUE}🔄 복구 시작${NC}"
     
@@ -161,7 +263,7 @@ cmd_restore() {
         exit 1
     fi
     
-    bash "$RESTORE_MODULE" "$backup_name" "$target_path" "$dry_run" "$delete_mode"
+    bash "$RESTORE_MODULE" "$backup_name" "$target_path" "$mode" "$delete_mode"
 }
 
 # 목록 명령어 처리
