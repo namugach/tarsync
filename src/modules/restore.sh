@@ -212,6 +212,39 @@ extract_backup() {
     return 0
 }
 
+# 복구 로그 파일 경로 반환
+get_restore_log_path() {
+    echo "$(get_restore_dir_path)/restore.log"
+}
+
+# 복구 작업 로그 기록
+write_restore_log() {
+    local message="$1"
+    local log_file
+    log_file=$(get_restore_log_path)
+    local timestamp
+    timestamp=$(date -Iseconds)
+    
+    # 로그 디렉토리 생성 (아직 없는 경우)
+    mkdir -p "$(dirname "$log_file")"
+    
+    # 로그 기록
+    echo "[$timestamp] $message" >> "$log_file"
+    echo "" >> "$log_file"
+}
+
+# rsync 결과를 로그에 기록
+write_rsync_result_log() {
+    local rsync_output="$1"
+    local log_file
+    log_file=$(get_restore_log_path)
+    
+    echo "=== Rsync Output ===" >> "$log_file"
+    echo "$rsync_output" >> "$log_file"
+    echo "===================" >> "$log_file"
+    echo "" >> "$log_file"
+}
+
 # rsync 동기화 실행
 execute_rsync() {
     local source_dir="$1"
@@ -237,13 +270,33 @@ execute_rsync() {
     echo "   - 처리 대상: 약 $file_count개 파일"
     echo ""
     
-    if ! rsync $rsync_options "${exclude_array_ref[@]}" "$source_dir/" "$target_dir/"; then
-        echo "❌ 파일 동기화에 실패했습니다."
+    # rsync 로그 기록 시작
+    write_restore_log "rsync 동기화 시작: $source_dir/ → $target_dir/"
+    write_restore_log "제외 경로: ${#exclude_array_ref[@]}개, 처리 대상: 약 $file_count개 파일"
+    
+    # rsync 실행 및 결과 캐치 (화면에도 표시하면서 로그도 기록)
+    local rsync_output
+    local rsync_exit_code
+    local temp_log="/tmp/tarsync_rsync_$$.log"
+    
+    # rsync 실행하면서 출력을 화면과 임시 파일 모두에 저장
+    rsync $rsync_options "${exclude_array_ref[@]}" "$source_dir/" "$target_dir/" 2>&1 | tee "$temp_log"
+    rsync_exit_code=${PIPESTATUS[0]}
+    
+    # 임시 파일의 내용을 변수에 저장하고 로그에 기록
+    rsync_output=$(cat "$temp_log")
+    write_rsync_result_log "$rsync_output"
+    rm -f "$temp_log"
+    
+    if [[ $rsync_exit_code -eq 0 ]]; then
+        echo "✅ 동기화 완료."
+        write_restore_log "rsync 동기화 성공적 완료"
+        return 0
+    else
+        echo "❌ 파일 동기화에 실패했습니다. (종료 코드: $rsync_exit_code)"
+        write_restore_log "rsync 동기화 실패 (종료 코드: $rsync_exit_code)"
         return 1
     fi
-    
-    echo "✅ 동기화 완료."
-    return 0
 }
 
 # 메인 복구 함수
@@ -253,6 +306,9 @@ restore() {
 
     echo "🔄 tarsync 복구를 시작합니다."
     echo ""
+
+    # 복구 작업 시작 로그 기록
+    write_restore_log "복구 작업 시작: $backup_name → $target_path"
 
     # 1. 필수 도구 검증
     validate_required_tools
@@ -330,7 +386,10 @@ restore() {
         exclude_array+=("--exclude=$exclude_path")
     done
 
+    write_restore_log "압축 해제 완료, rsync 동기화 준비 완료"
+    
     if ! execute_rsync "$work_dir" "$target_path" exclude_array "$delete_mode"; then
+        write_restore_log "복구 작업 실패: rsync 동기화 오류"
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
         exit 1
@@ -341,6 +400,13 @@ restore() {
     echo "🧹 임시 작업 디렉토리 정리..."
     rm -rf "$work_dir"
     echo "✅ 정리 완료."
+    echo ""
+
+    # 복구 작업 완료 로그 기록
+    write_restore_log "복구 작업 성공적 완료: $target_path"
+    local log_file
+    log_file=$(get_restore_log_path)
+    echo "📜 복구 로그가 저장되었습니다: $log_file"
     echo ""
 
     echo "🎉 복구가 성공적으로 완료되었습니다!"
