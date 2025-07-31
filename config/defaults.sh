@@ -7,7 +7,7 @@
 BACKUP_DISK="/"
 
 # 기본 백업 경로 (사용자 설정이 없을 때 사용)
-BACKUP_PATH="/mnt/backup"
+BACKUP_PATH="/mnt/backup/tarsync"
 
 # 기본 제외 경로 목록
 EXCLUDE_DEFAULT=(

@@ -16,10 +16,8 @@ load_backup_settings() {
     if [[ -f "$settings_file" ]]; then
         source "$settings_file"
         BACKUP_PATH="$BACKUP_DIR"
-    else
-        # 설정 파일이 없으면 기본값 사용
-        BACKUP_PATH="/mnt/backup"
     fi
+    # defaults.sh에서 이미 BACKUP_PATH가 설정되어 있으므로 별도 처리 불필요
 }
 
 # 전체 제외 경로 목록을 생성하는 함수

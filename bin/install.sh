@@ -267,7 +267,7 @@ configure_backup_directory() {
     log_info "📁 백업 저장 위치를 설정합니다"
     echo ""
     echo "   백업 파일들이 저장될 디렉토리를 입력하세요:"
-    echo "   • 기본값: /mnt/backup (별도 디스크/파티션 권장)"
+    echo "   • 기본값: /mnt/backup (tarsync 하위 디렉토리 자동 생성)"
     echo "   • 예시: ~/backup, /data/backup, /var/backup"
     echo ""
     echo -n "   백업 디렉토리 [/mnt/backup]: "
