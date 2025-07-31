@@ -212,37 +212,36 @@ extract_backup() {
     return 0
 }
 
-# 복구 로그 파일 경로 반환
-get_restore_log_path() {
-    echo "$(get_restore_dir_path)/restore.log"
-}
+# 복구 로그 생성 (원본 방식)
+create_restore_log() {
+    local work_dir="$1"
+    local backup_name="$2"
+    local target_path="$3"
+    local delete_mode="$4"
+    local rsync_output="$5"
+    
+    local log_file="$work_dir/restore.log"
+    
+    cat > "$log_file" << EOF
+# tarsync 복구 로그
+==========================================
 
-# 복구 작업 로그 기록
-write_restore_log() {
-    local message="$1"
-    local log_file
-    log_file=$(get_restore_log_path)
-    local timestamp
-    timestamp=$(date -Iseconds)
-    
-    # 로그 디렉토리 생성 (아직 없는 경우)
-    mkdir -p "$(dirname "$log_file")"
-    
-    # 로그 기록
-    echo "[$timestamp] $message" >> "$log_file"
-    echo "" >> "$log_file"
-}
+복구 시작: $(date -Iseconds)
+백업 이름: $backup_name
+복구 대상: $target_path
+작업 디렉토리: $work_dir
+삭제 모드: $delete_mode
 
-# rsync 결과를 로그에 기록
-write_rsync_result_log() {
-    local rsync_output="$1"
-    local log_file
-    log_file=$(get_restore_log_path)
+==========================================
+
+$rsync_output
+
+==========================================
+
+복구 완료: $(date -Iseconds)
+EOF
     
-    echo "=== Rsync Output ===" >> "$log_file"
-    echo "$rsync_output" >> "$log_file"
-    echo "===================" >> "$log_file"
-    echo "" >> "$log_file"
+    echo "📜 복구 로그가 저장되었습니다: $log_file"
 }
 
 # rsync 동기화 실행
@@ -270,11 +269,7 @@ execute_rsync() {
     echo "   - 처리 대상: 약 $file_count개 파일"
     echo ""
     
-    # rsync 로그 기록 시작
-    write_restore_log "rsync 동기화 시작: $source_dir/ → $target_dir/"
-    write_restore_log "제외 경로: ${#exclude_array_ref[@]}개, 처리 대상: 약 $file_count개 파일"
-    
-    # rsync 실행 및 결과 캐치 (화면에도 표시하면서 로그도 기록)
+    # rsync 실행 및 결과 캐치
     local rsync_output
     local rsync_exit_code
     local temp_log="/tmp/tarsync_rsync_$$.log"
@@ -283,18 +278,18 @@ execute_rsync() {
     rsync $rsync_options "${exclude_array_ref[@]}" "$source_dir/" "$target_dir/" 2>&1 | tee "$temp_log"
     rsync_exit_code=${PIPESTATUS[0]}
     
-    # 임시 파일의 내용을 변수에 저장하고 로그에 기록
+    # 임시 파일의 내용을 변수에 저장 (로그 생성용)
     rsync_output=$(cat "$temp_log")
-    write_rsync_result_log "$rsync_output"
     rm -f "$temp_log"
+    
+    # rsync 출력을 전역 변수로 저장 (create_restore_log에서 사용)
+    RSYNC_OUTPUT="$rsync_output"
     
     if [[ $rsync_exit_code -eq 0 ]]; then
         echo "✅ 동기화 완료."
-        write_restore_log "rsync 동기화 성공적 완료"
         return 0
     else
         echo "❌ 파일 동기화에 실패했습니다. (종료 코드: $rsync_exit_code)"
-        write_restore_log "rsync 동기화 실패 (종료 코드: $rsync_exit_code)"
         return 1
     fi
 }
@@ -307,8 +302,9 @@ restore() {
     echo "🔄 tarsync 복구를 시작합니다."
     echo ""
 
-    # 복구 작업 시작 로그 기록
-    write_restore_log "복구 작업 시작: $backup_name → $target_path"
+    # 복구 작업 시작 시간 기록
+    local restore_start_time
+    restore_start_time=$(date -Iseconds)
 
     # 1. 필수 도구 검증
     validate_required_tools
@@ -386,27 +382,26 @@ restore() {
         exclude_array+=("--exclude=$exclude_path")
     done
 
-    write_restore_log "압축 해제 완료, rsync 동기화 준비 완료"
-    
     if ! execute_rsync "$work_dir" "$target_path" exclude_array "$delete_mode"; then
-        write_restore_log "복구 작업 실패: rsync 동기화 오류"
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
     echo ""
 
-    # 9. 정리
+    # 9. 복구 로그 생성 (rsync 완료 후)
+    create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT"
+    
+    # 로그 파일을 restore 디렉토리로 복사 (정리되기 전에)
+    local permanent_log_file="$(get_restore_dir_path)/restore_${backup_name}_$(date +%Y%m%d_%H%M%S).log"
+    cp "$work_dir/restore.log" "$permanent_log_file"
+    echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
+    echo ""
+
+    # 10. 정리
     echo "🧹 임시 작업 디렉토리 정리..."
     rm -rf "$work_dir"
     echo "✅ 정리 완료."
-    echo ""
-
-    # 복구 작업 완료 로그 기록
-    write_restore_log "복구 작업 성공적 완료: $target_path"
-    local log_file
-    log_file=$(get_restore_log_path)
-    echo "📜 복구 로그가 저장되었습니다: $log_file"
     echo ""
 
     echo "🎉 복구가 성공적으로 완료되었습니다!"
