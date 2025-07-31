@@ -213,8 +213,8 @@ extract_backup() {
 execute_rsync() {
     local source_dir="$1"
     local target_dir="$2"
-    local exclude_options="$3"
-    local delete_mode="$4" # 삭제 모드 추가
+    local filter_options="$3" # 필터 옵션으로 변경
+    local delete_mode="$4"
     
     local rsync_options="-avhP --stats"
     if [[ "$delete_mode" == "true" ]]; then
@@ -227,7 +227,8 @@ execute_rsync() {
     echo "   - 원본: $source_dir/"
     echo "   - 대상: $target_dir/"
     
-    if ! rsync $rsync_options $exclude_options "$source_dir/" "$target_dir/"; then
+    # filter_options를 포함하여 rsync 실행
+    if ! rsync $rsync_options $filter_options "$source_dir/" "$target_dir/"; then
         echo "❌ 파일 동기화에 실패했습니다."
         return 1
     fi
@@ -315,12 +316,17 @@ restore() {
     echo ""
 
     # 8. rsync 동기화
-    local exclude_options=""
-    for exclude_path in "${META_EXCLUDE[@]}"; do
-        exclude_options="$exclude_options --exclude='$exclude_path'"
-    done
+    local filter_options=""
+    if [[ "$delete_mode" == "true" ]]; then
+        echo "🛡️ 제외된 경로를 삭제로부터 보호합니다..."
+        for exclude_path in "${META_EXCLUDE[@]}"; do
+            # 경로 맨 앞의 /를 제거 (rsync 필터 규칙 형식)
+            local clean_path=${exclude_path#/}
+            filter_options+=" --filter='P /$clean_path'"
+        done
+    fi
 
-    if ! execute_rsync "$work_dir" "$target_path" "$exclude_options" "$delete_mode"; then
+    if ! execute_rsync "$work_dir" "$target_path" "$filter_options" "$delete_mode"; then
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
         exit 1
