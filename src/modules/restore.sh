@@ -219,8 +219,14 @@ create_restore_log() {
     local target_path="$3"
     local delete_mode="$4"
     local rsync_output="$5"
+    local restore_success="$6"
     
     local log_file="$work_dir/restore.log"
+    local status_text="복구 완료"
+    
+    if [[ "$restore_success" == "false" ]]; then
+        status_text="복구 실패"
+    fi
     
     cat > "$log_file" << EOF
 # tarsync 복구 로그
@@ -231,6 +237,7 @@ create_restore_log() {
 복구 대상: $target_path
 작업 디렉토리: $work_dir
 삭제 모드: $delete_mode
+복구 상태: $status_text
 
 ==========================================
 
@@ -238,7 +245,7 @@ $rsync_output
 
 ==========================================
 
-복구 완료: $(date -Iseconds)
+$status_text: $(date -Iseconds)
 EOF
     
     echo "📜 복구 로그가 저장되었습니다: $log_file"
@@ -382,23 +389,33 @@ restore() {
         exclude_array+=("--exclude=$exclude_path")
     done
 
+    # 9. rsync 실행 및 로그 생성 (성공/실패 관계없이)
+    local restore_success=true
     if ! execute_rsync "$work_dir" "$target_path" exclude_array "$delete_mode"; then
+        restore_success=false
+        echo "❌ 파일 동기화에 실패했습니다."
+    else
+        echo "✅ 파일 동기화가 완료되었습니다."
+    fi
+    echo ""
+
+    # 10. 복구 로그 생성 (성공/실패 관계없이 항상 생성)
+    create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT" "$restore_success"
+    
+    # 로그 파일을 restore 디렉토리로 복사 (정리되기 전에)
+    local permanent_log_file="$(get_restore_dir_path)/${backup_name}_$(date +%Y%m%d_%H%M%S).log"
+    cp "$work_dir/restore.log" "$permanent_log_file"
+    echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
+    echo ""
+    
+    # 복구 실패 시 중단
+    if [[ "$restore_success" == "false" ]]; then
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
         exit 1
     fi
-    echo ""
 
-    # 9. 복구 로그 생성 (rsync 완료 후)
-    create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT"
-    
-    # 로그 파일을 restore 디렉토리로 복사 (정리되기 전에)
-    local permanent_log_file="$(get_restore_dir_path)/restore_${backup_name}_$(date +%Y%m%d_%H%M%S).log"
-    cp "$work_dir/restore.log" "$permanent_log_file"
-    echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
-    echo ""
-
-    # 10. 정리
+    # 11. 정리
     echo "🧹 임시 작업 디렉토리 정리..."
     rm -rf "$work_dir"
     echo "✅ 정리 완료."
