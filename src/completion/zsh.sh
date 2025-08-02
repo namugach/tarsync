@@ -12,7 +12,7 @@ _tarsync() {
     # 첫 번째 인자: 주 명령어
     # First argument: main commands
     _arguments \
-        '1:commands:(backup restore list help version)' \
+        '1:commands:(backup restore list log delete details help version)' \
         '*::arguments:->args'
     
     case $state in
@@ -55,6 +55,23 @@ _tarsync() {
                         '(-p --page)'{-p,--page}'[페이지 번호]:page number:(1 2 3 4 5)' \
                         '--select[백업 선택]:backup id:(1 2 3 4 5 6 7 8 9 10)' \
                         '(-v --verbose)'{-v,--verbose}'[상세 출력]'
+                    ;;
+                log|delete|details)
+                    # log, delete, details 명령어: 백업 이름 자동완성
+                    # log, delete, details commands: backup name completion
+                    local backup_dir="/mnt/backup/tarsync/store"
+                    if [ -f "$HOME/.tarsync/config/settings.env" ]; then
+                        local custom_dir=$(grep "^BACKUP_DIR=" "$HOME/.tarsync/config/settings.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+                        [ -n "$custom_dir" ] && backup_dir="$custom_dir/store"
+                    fi
+                    
+                    local backup_names=()
+                    if [ -d "$backup_dir" ]; then
+                        backup_names=($(find "$backup_dir" -maxdepth 1 -type d -name "2*" -printf "%f\n" 2>/dev/null | sort))
+                    fi
+                    
+                    _arguments \
+                        "*:backup names:(${backup_names[*]})"
                     ;;
                 help|version)
                     # help, version: 추가 인자 없음

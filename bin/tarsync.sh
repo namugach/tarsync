@@ -42,7 +42,7 @@ requires_sudo() {
         "backup"|"b"|"restore"|"r"|"delete"|"rm"|"d")
             return 0  # sudo 필요 (쓰기/수정 작업)
             ;;
-        "list"|"ls"|"l"|"details"|"show"|"info"|"i"|"version"|"v"|"-v"|"--version"|"help"|"h"|"-h"|"--help")
+        "list"|"ls"|"l"|"log"|"details"|"show"|"info"|"i"|"version"|"v"|"-v"|"--version"|"help"|"h"|"-h"|"--help")
             return 1  # sudo 불필요 (읽기 전용 작업)
             ;;
         *)
@@ -64,6 +64,7 @@ show_help() {
     echo -e "  ${GREEN}backup [경로]${NC}      # 특정 경로 또는 전체 시스템을 백업합니다. (기본값: /)"
     echo -e "  ${GREEN}restore [백업명] [대상]${NC} # 선택한 백업을 지정한 경로로 복구합니다."
     echo -e "  ${GREEN}list${NC}              # 생성된 백업 목록을 최신순으로 표시합니다."
+    echo -e "  ${GREEN}log <번호|백업명>${NC}   # 백업의 메모와 로그를 표시합니다."
     echo -e "  ${GREEN}delete <백업명>${NC}    # 지정한 백업을 영구적으로 삭제합니다."
     echo -e "  ${GREEN}details <백업명>${NC}   # 백업의 상세 정보를 표시합니다."
     echo ""
@@ -76,6 +77,7 @@ show_help() {
     echo "  sudo $PROGRAM_NAME restore              # 대화형 모드로 복구 시작"
     echo "  sudo $PROGRAM_NAME restore 1 /tmp/res   # 1번 백업을 /tmp/res에 복구"
     echo "  $PROGRAM_NAME list                      # 백업 목록 보기"
+    echo "  $PROGRAM_NAME log 7                     # 7번 백업의 메모와 로그 보기"
     echo "  sudo $PROGRAM_NAME delete backup_name   # 특정 백업 삭제"
 }
 
@@ -161,6 +163,23 @@ cmd_list() {
     bash "$LIST_MODULE" list "$page_size" "$page_num" "$select_list"
 }
 
+# 로그 명령어 처리
+cmd_log() {
+    local backup_identifier="$1"
+    
+    if [[ -z "$backup_identifier" ]]; then
+        echo -e "${RED}❌ 백업 번호 또는 이름을 지정해주세요.${NC}" >&2
+        echo "   사용법: $PROGRAM_NAME log <번호|백업이름>"
+        exit 1
+    fi
+    
+    if ! check_module "$LIST_MODULE" "목록"; then
+        exit 1
+    fi
+    
+    bash "$LIST_MODULE" log "$backup_identifier"
+}
+
 # 삭제 명령어 처리
 cmd_delete() {
     local backup_name="$1"
@@ -213,6 +232,9 @@ main() {
         "list"|"ls"|"l")
             cmd_list "${@:2}"
             ;;
+        "log")
+            cmd_log "${@:2}"
+            ;;
         "delete"|"rm"|"d")
             cmd_delete "${@:2}"
             ;;
@@ -229,7 +251,7 @@ main() {
             echo -e "${RED}❌ 알 수 없는 명령어: $command${NC}" >&2
             echo ""
             echo -e "${YELLOW}사용 가능한 명령어:${NC}"
-            echo "  backup, restore, list, delete, details, version, help"
+            echo "  backup, restore, list, log, delete, details, version, help"
             echo ""
             echo -e "${CYAN}도움말 보기: $PROGRAM_NAME help${NC}"
             exit 1

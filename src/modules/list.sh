@@ -89,22 +89,92 @@ paginate_files() {
     echo "$items_count $corrected_page_num $total_pages $start"
 }
 
-# 선택된 백업의 로그 파일 내용 출력
-print_backup_log() {
-    local backup_dir="$1"
-    local file_name="$2"
+# 백업 번호를 실제 백업 이름으로 변환 (log 명령어용)
+get_backup_name_by_number_for_log() {
+    local backup_number="$1"
+    local store_dir
+    store_dir=$(get_store_dir_path)
     
+    if [[ "$backup_number" =~ ^[0-9]+$ ]]; then
+        # list.sh와 동일한 로직 사용
+        local files_raw
+        files_raw=$(ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_")
+        
+        if [[ -z "$files_raw" ]]; then
+            return 1
+        fi
+        
+        # 배열로 변환
+        local files=()
+        while IFS= read -r line; do
+            files+=("$line")
+        done <<< "$files_raw"
+        
+        local files_length=${#files[@]}
+        local array_index=$((backup_number - 1))
+        
+        if [[ $array_index -ge 0 && $array_index -lt $files_length ]]; then
+            local file="${files[$array_index]}"
+            local file_name
+            file_name=$(echo "$file" | awk '{print $4}')
+            echo "$file_name"
+            return 0
+        else
+            return 1
+        fi
+    else
+        echo "$backup_number"
+        return 0
+    fi
+}
+
+# 백업 로그와 메모 표시 (log 명령어용)
+show_backup_log() {
+    local backup_identifier="$1"
+    
+    if [[ -z "$backup_identifier" ]]; then
+        echo "❌ 백업 번호 또는 이름을 지정해주세요." >&2
+        echo "사용법: tarsync log <번호|백업이름>" >&2
+        return 1
+    fi
+    
+    # 번호 또는 이름을 실제 백업 이름으로 변환
+    local backup_name
+    backup_name=$(get_backup_name_by_number_for_log "$backup_identifier")
+    
+    if [[ -z "$backup_name" ]]; then
+        echo "❌ 백업 번호 $backup_identifier 에 해당하는 백업을 찾을 수 없습니다." >&2
+        return 1
+    fi
+    
+    local store_dir
+    store_dir=$(get_store_dir_path)
+    local backup_dir="$store_dir/$backup_name"
+    
+    if [[ ! -d "$backup_dir" ]]; then
+        echo "❌ 백업이 존재하지 않습니다: $backup_name" >&2
+        return 1
+    fi
+    
+    echo "📋 $backup_name 메모 및 로그 목록 조회 중..."
+    echo ""
+    
+    local note_file="$backup_dir/note.md"
     local log_file="$backup_dir/log.json"
     
+    # 메모 파일 표시
+    if [[ -f "$note_file" ]]; then
+        echo "=== meno ==="
+        cat "$note_file"
+        echo ""
+    fi
+    
+    # 로그 파일 표시 (항상 표시)
+    echo "=== log ==="
     if [[ -f "$log_file" ]]; then
-        echo ""
-        echo "📜 백업 로그 내용 ($file_name/log.json):"
-        echo "-----------------------------------"
-        jq . "$log_file"
-        echo "-----------------------------------"
+        cat "$log_file"
     else
-        echo ""
-        echo "⚠️  선택된 디렉토리에 log.json 파일이 없습니다: $file_name"
+        echo "⚠️  로그 파일이 없습니다: $backup_name"
     fi
 }
 
@@ -161,8 +231,6 @@ print_backups() {
     
     local result=""
     local total_size=0
-    local selected_backup_dir=""
-    local selected_file_name=""
     local store_dir
     store_dir=$(get_store_dir_path)
     
@@ -207,38 +275,10 @@ print_backups() {
             fi
         fi
         
-        # 로그 파일 존재 여부 확인
-        local log_icon="❌"
-        if [[ -f "$backup_dir/log.json" ]]; then
-            log_icon="📖"
-        fi
-        
-        # 사용자 메모 파일 존재 여부 확인
-        local note_icon=""
+        # 사용자 메모 파일 존재 여부만 확인
+        local note_icon="❌"
         if [[ -f "$backup_dir/note.md" ]]; then
             note_icon="📝"
-        fi
-        
-        # 백업 상태 체크
-        local integrity_status
-        integrity_status=$(check_backup_integrity "$backup_dir")
-        
-        # 선택된 디렉토리 표시
-        local selection_icon="⬜️"
-        local is_selected=false
-        
-        if [[ $select_list -lt 0 ]] && [[ $i -eq $((items_count + select_list)) ]]; then
-            selection_icon="✅"
-            is_selected=true
-        elif [[ $select_list -gt 0 ]] && [[ $i -eq $((select_list - 1)) ]]; then
-            selection_icon="✅"
-            is_selected=true
-        fi
-        
-        # 선택된 항목 정보 저장
-        if [[ $is_selected == true ]]; then
-            selected_backup_dir="$backup_dir"
-            selected_file_name="$file_name"
         fi
         
         # 총 용량 계산
@@ -249,7 +289,7 @@ print_backups() {
         local padded_index
         padded_index=$(pad_index_to_reference_length "$files_length" "$current_index")
         
-        result+="$padded_index. $selection_icon $integrity_status $log_icon $note_icon $size $file"$'\n'
+        result+="$padded_index. $note_icon $size $file"$'\n'
     done
     
     result+=""$'\n'
@@ -266,11 +306,6 @@ print_backups() {
     
     # 결과 출력
     echo "$result"
-    
-    # 선택된 백업의 로그 출력
-    if [[ -n "$selected_backup_dir" ]] && [[ -n "$selected_file_name" ]]; then
-        print_backup_log "$selected_backup_dir" "$selected_file_name"
-    fi
 }
 
 # 백업 삭제 함수
@@ -390,18 +425,25 @@ main() {
             local backup_name="$2"
             show_backup_details "$backup_name"
             ;;
+        "log")
+            local backup_identifier="$2"
+            show_backup_log "$backup_identifier"
+            ;;
         "help"|"-h"|"--help")
             echo "tarsync 백업 목록 관리"
             echo ""
             echo "사용법:"
-            echo "  $0 list [페이지크기] [페이지번호] [선택번호]    # 백업 목록 표시"
+            echo "  $0 list [페이지크기] [페이지번호]             # 백업 목록 표시"
+            echo "  $0 log <번호|백업이름>                      # 백업 메모와 로그 표시"
             echo "  $0 delete <백업이름>                        # 백업 삭제"
             echo "  $0 details <백업이름>                       # 백업 상세 정보"
             echo "  $0 help                                    # 도움말 표시"
             echo ""
             echo "예시:"
-            echo "  $0 list 10 1                               # 10개씩, 1페이지 (기본값)"
-            echo "  $0 list 10 -1 2                          # 10개씩, 마지막 페이지, 2번째 선택"
+            echo "  $0 list                                   # 전체 목록 표시"
+            echo "  $0 list 5                                 # 5개씩 표시"
+            echo "  $0 log 7                                  # 7번 백업의 메모와 로그 표시"
+            echo "  $0 log 2025_08_02_PM_04_16_40            # 특정 백업의 메모와 로그 표시"
             echo "  $0 delete 2025_06_27_오후_02_28_59         # 특정 백업 삭제"
             echo "  $0 details 2025_06_27_오후_02_28_59        # 백업 상세 정보"
             ;;

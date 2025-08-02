@@ -13,7 +13,7 @@ _tarsync_completion() {
     
     # 사용 가능한 명령어 목록
     # List of available commands
-    local commands="backup restore list help version"
+    local commands="backup restore list log delete details help version"
     
     # 첫 번째 인자: 주 명령어 자동완성
     # First argument: main command completion
@@ -50,6 +50,21 @@ _tarsync_completion() {
                 # list 명령어 옵션
                 # list command options
                 COMPREPLY=($(compgen -W "--page --select --verbose" -- ${cur}))
+                return 0
+                ;;
+            "log"|"delete"|"details")
+                # 백업 이름 자동완성 (log, delete, details 명령어용)
+                # Backup name completion for log, delete, details commands
+                local backup_dir="/mnt/backup/tarsync/store"
+                if [ -f "$HOME/.tarsync/config/settings.env" ]; then
+                    local custom_dir=$(grep "^BACKUP_DIR=" "$HOME/.tarsync/config/settings.env" 2>/dev/null | cut -d'=' -f2 | tr -d '"')
+                    [ -n "$custom_dir" ] && backup_dir="$custom_dir/store"
+                fi
+                
+                if [ -d "$backup_dir" ]; then
+                    local backup_names=$(find "$backup_dir" -maxdepth 1 -type d -name "2*" -printf "%f\n" 2>/dev/null | sort)
+                    COMPREPLY=($(compgen -W "${backup_names}" -- ${cur}))
+                fi
                 return 0
                 ;;
         esac
