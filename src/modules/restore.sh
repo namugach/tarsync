@@ -30,6 +30,7 @@ show_backup_list() {
             local size_info="?"
             local log_icon="❌"
             local meta_icon="❌"
+            local note_icon=""
             
             if [[ -f "$tar_file" ]]; then
                 size_info=$(get_path_size_formatted "$tar_file")
@@ -43,8 +44,12 @@ show_backup_list() {
                 meta_icon="📄"
             fi
             
+            if [[ -f "$backup_dir/note.md" ]]; then
+                note_icon="📝"
+            fi
+            
             count=$((count + 1))
-            echo "  $count. $meta_icon $log_icon $size_info - $dir_name" >&2
+            echo "  $count. $meta_icon $log_icon $note_icon $size_info - $dir_name" >&2
         done
     else
         echo "  백업 디렉토리가 없습니다." >&2

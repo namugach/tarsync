@@ -14,6 +14,7 @@ source "$(get_script_dir)/common.sh"
 create_basic_json_log() {
     local work_dir="$1"
     local status="$2"
+    local has_notes="${3:-false}"
     local exclude_count=$(get_exclude_paths | wc -l)
     local timestamp=$(date -Iseconds)
     
@@ -28,7 +29,7 @@ create_basic_json_log() {
         --arg created_by "tarsync shell script" \
         --argjson exclude_count "$exclude_count" \
         --argjson exclude_paths "$(get_exclude_paths | jq -R -s -c 'split("\n")[:-1]')" \
-        --arg user_notes "" \
+        --argjson user_notes "$has_notes" \
         '{
             backup: {
                 timestamp: $timestamp,
@@ -88,6 +89,54 @@ edit_user_notes() {
     echo "📝 사용자 메모가 저장되었습니다."
 }
 
+# note.md 파일 생성 함수
+create_note_file() {
+    local work_dir="$1"
+    local note_file="$work_dir/note.md"
+    
+    # 기본 템플릿 생성
+    cat > "$note_file" << EOF
+# 백업 메모
+
+**백업 날짜**: $(date '+%Y-%m-%d %H:%M:%S')
+**백업 대상**: $BACKUP_DISK
+
+## 메모
+<!-- 여기에 백업과 관련된 메모를 작성하세요 -->
+
+EOF
+    
+    echo "📝 사용자 메모 파일을 편집합니다..."
+    echo "   (백업 관련 메모를 작성하세요)"
+    
+    # 에디터로 편집
+    if command -v vim >/dev/null 2>&1; then
+        echo "   (저장하고 종료: :wq, 편집 없이 종료: :q)"
+        vim "$note_file"
+    elif command -v nano >/dev/null 2>&1; then
+        echo "   (저장하고 종료: Ctrl+X)"
+        nano "$note_file"
+    else
+        echo "⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 템플릿만 생성됩니다."
+        return
+    fi
+    
+    echo "📝 사용자 메모가 저장되었습니다: $note_file"
+}
+
+# JSON 로그의 user_notes 플래그 업데이트
+update_json_user_notes_flag() {
+    local work_dir="$1"
+    local has_notes="$2"
+    
+    if [[ ! -f "$work_dir/log.json" ]]; then
+        return
+    fi
+    
+    jq --argjson notes "$has_notes" '.user_notes = $notes' "$work_dir/log.json" > "$work_dir/log.json.tmp"
+    mv "$work_dir/log.json.tmp" "$work_dir/log.json"
+}
+
 # JSON 로그 완료 업데이트 함수
 update_json_log_completion() {
     local work_dir="$1"
@@ -124,32 +173,29 @@ update_json_log_completion() {
     mv "$work_dir/log.json.tmp" "$work_dir/log.json"
 }
 
-# 로그 파일 작성 여부를 사용자에게 묻기
-prompt_log_creation() {
+# 로그 파일 생성 (필수)
+create_backup_log() {
     local work_dir="$1"
     
-    echo -n "📝 로그를 기록하시겠습니까? (Y/n): "
-    read -r user_input
+    echo "📝 백업 로그를 생성합니다..."
     
-    # 기본값은 Y
-    user_input=${user_input:-Y}
+    # 기본 JSON 로그 생성
+    create_basic_json_log "$work_dir" "in_progress" false
     
-    if [[ "$user_input" =~ ^[Yy]$ ]]; then
-        echo "📝 JSON 로그 파일을 생성합니다..."
-        
-        # 기본 JSON 로그 생성
-        create_basic_json_log "$work_dir" "in_progress"
-        
-        # 사용자 메모 편집 옵션
-        echo -n "📝 추가 메모를 작성하시겠습니까? (y/N): "
-        read -r edit_notes
-        
-        if [[ "$edit_notes" =~ ^[Yy]$ ]]; then
-            edit_user_notes "$work_dir"
-        fi
-    else
-        echo "📝 로그 생성을 건너뜁니다."
+    # 사용자 메모 작성 옵션
+    echo -n "📝 사용자 메모를 작성하시겠습니까? (Y/n): "
+    read -r create_notes
+    create_notes=${create_notes:-Y}
+    
+    local has_notes=false
+    if [[ "$create_notes" =~ ^[Yy]$ ]]; then
+        create_note_file "$work_dir"
+        has_notes=true
+        # JSON 로그의 user_notes 플래그 업데이트
+        update_json_user_notes_flag "$work_dir" true
     fi
+    
+    echo "📝 로그 파일이 생성되었습니다."
 }
 
 # 백업 실행 함수
@@ -346,8 +392,8 @@ backup() {
     echo "✅ 메타데이터가 생성되었습니다: $work_dir/meta.sh"
     echo ""
     
-    # 8. 로그 파일 생성 (사용자 선택)
-    prompt_log_creation "$work_dir"
+    # 8. 로그 파일 생성 (필수)
+    create_backup_log "$work_dir"
     echo ""
     
     # 9. 백업 실행 (시간 측정 시작)

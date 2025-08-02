@@ -40,9 +40,9 @@ get_backup_files() {
         return 1
     fi
     
-    # ls -lthr로 시간순 정렬하여 파일 목록 가져오기
+    # ls -ltr로 시간순 정렬하여 파일 목록 가져오기 (최신순)
     # awk로 날짜, 시간, 파일명 추출
-    ls -lthr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_"
+    ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_" | tac
 }
 
 # 파일 배열을 페이지 단위로 나누기
@@ -213,6 +213,12 @@ print_backups() {
             log_icon="📖"
         fi
         
+        # 사용자 메모 파일 존재 여부 확인
+        local note_icon=""
+        if [[ -f "$backup_dir/note.md" ]]; then
+            note_icon="📝"
+        fi
+        
         # 백업 상태 체크
         local integrity_status
         integrity_status=$(check_backup_integrity "$backup_dir")
@@ -243,7 +249,7 @@ print_backups() {
         local padded_index
         padded_index=$(pad_index_to_reference_length "$files_length" "$current_index")
         
-        result+="$padded_index. $selection_icon $integrity_status $log_icon $size $file"$'\n'
+        result+="$padded_index. $selection_icon $integrity_status $log_icon $note_icon $size $file"$'\n'
     done
     
     result+=""$'\n'
