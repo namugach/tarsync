@@ -263,16 +263,23 @@ install_tarsync_script() {
 
 # 백업 디렉토리 설정
 configure_backup_directory() {
+    # defaults.sh에서 기본 백업 경로 로드
+    local default_backup_path="/mnt/backup/tarsync"
+    if [[ -f "$PROJECT_ROOT/config/defaults.sh" ]]; then
+        source "$PROJECT_ROOT/config/defaults.sh"
+        default_backup_path="$BACKUP_PATH"
+    fi
+    
     echo ""
     log_info "📁 백업 저장 위치를 설정합니다"
     echo ""
     echo "   백업 파일들이 저장될 디렉토리를 입력하세요:"
-    echo "   • 기본값: /mnt/backup (tarsync 하위 디렉토리 자동 생성)"
-    echo "   • 예시: ~/backup, /data/backup, /var/backup"
+    echo "   • 기본값: $default_backup_path"
+    echo "   • 예시: ~/backup/tarsync, /data/backup/tarsync, /var/backup/tarsync"
     echo ""
-    echo -n "   백업 디렉토리 [/mnt/backup]: "
+    echo -n "   백업 디렉토리 [$default_backup_path]: "
     read -r backup_dir
-    backup_dir=${backup_dir:-/mnt/backup}
+    backup_dir=${backup_dir:-$default_backup_path}
     
     # 경로 정규화 (~ 확장)
     if [[ "$backup_dir" == "~/"* ]]; then
@@ -407,7 +414,7 @@ copy_project_files() {
     cat > "$PROJECT_DIR/config/settings.env" << EOF
 # tarsync 기본 설정
 LANGUAGE=ko
-BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup}
+BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup/tarsync}
 LOG_LEVEL=info
 EOF
     

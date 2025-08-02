@@ -40,9 +40,9 @@ get_backup_files() {
         return 1
     fi
     
-    # ls -ltr로 시간순 정렬하여 파일 목록 가져오기 (최신순)
+    # ls -ltr로 시간순 정렬하여 파일 목록 가져오기 (추가순)
     # awk로 날짜, 시간, 파일명 추출
-    ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_" | tac
+    ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_"
 }
 
 # 파일 배열을 페이지 단위로 나누기
@@ -400,7 +400,7 @@ main() {
             echo "  $0 help                                    # 도움말 표시"
             echo ""
             echo "예시:"
-            echo "  $0 list 5 1                               # 5개씩, 1페이지"
+            echo "  $0 list 10 1                               # 10개씩, 1페이지 (기본값)"
             echo "  $0 list 10 -1 2                          # 10개씩, 마지막 페이지, 2번째 선택"
             echo "  $0 delete 2025_06_27_오후_02_28_59         # 특정 백업 삭제"
             echo "  $0 details 2025_06_27_오후_02_28_59        # 백업 상세 정보"

@@ -48,9 +48,14 @@ convert_size() {
 }
 
 # 현재 날짜를 tarsync 형식으로 반환
-# 예: "2025_06_27_오전_11_59_00"
+# 예: "2025_06_27_AM_11_59_00"
 get_date() {
-    date '+%Y_%m_%d_%p_%I_%M_%S'
+    local hour=$(date '+%H')
+    local ampm="AM"
+    if [[ $hour -ge 12 ]]; then
+        ampm="PM"
+    fi
+    date '+%Y_%m_%d_'${ampm}'_%I_%M_%S'
 }
 
 # 현재 타임스탬프를 반환 (로그용)
