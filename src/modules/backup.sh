@@ -250,7 +250,7 @@ show_backup_result() {
             
             local tar_file="$backup_dir/tarsync.tar.gz"
             local meta_file="$backup_dir/meta.sh"
-            local log_file="$backup_dir/log.md"
+            local log_file="$backup_dir/log.json"
             
             local size_info="?"
             local log_icon="❌"

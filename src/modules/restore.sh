@@ -25,7 +25,7 @@ show_backup_list() {
             
             local tar_file="$backup_dir/tarsync.tar.gz"
             local meta_file="$backup_dir/meta.sh"
-            local log_file="$backup_dir/log.md"
+            local log_file="$backup_dir/log.json"
             
             local size_info="?"
             local log_icon="❌"
@@ -108,13 +108,13 @@ select_backup() {
     echo "$actual_backup_name"
 }
 
-# log.md에서 원본 소스 경로 추출
+# log.json에서 원본 소스 경로 추출
 get_original_source_from_log() {
     local backup_dir="$1"
-    local log_file="$backup_dir/log.md"
+    local log_file="$backup_dir/log.json"
 
     if [[ -f "$log_file" ]]; then
-        grep '^- Source:' "$log_file" | awk -F': ' '{print $2}' | tr -d '[:space:]'
+        jq -r '.backup.source' "$log_file" 2>/dev/null || echo ""
     else
         echo ""
     fi

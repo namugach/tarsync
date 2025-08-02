@@ -94,17 +94,17 @@ print_backup_log() {
     local backup_dir="$1"
     local file_name="$2"
     
-    local log_file="$backup_dir/log.md"
+    local log_file="$backup_dir/log.json"
     
     if [[ -f "$log_file" ]]; then
         echo ""
-        echo "📜 백업 로그 내용 ($file_name/log.md):"
+        echo "📜 백업 로그 내용 ($file_name/log.json):"
         echo "-----------------------------------"
-        cat "$log_file"
+        jq . "$log_file"
         echo "-----------------------------------"
     else
         echo ""
-        echo "⚠️  선택된 디렉토리에 log.md 파일이 없습니다: $file_name"
+        echo "⚠️  선택된 디렉토리에 log.json 파일이 없습니다: $file_name"
     fi
 }
 
@@ -209,7 +209,7 @@ print_backups() {
         
         # 로그 파일 존재 여부 확인
         local log_icon="❌"
-        if [[ -f "$backup_dir/log.md" ]]; then
+        if [[ -f "$backup_dir/log.json" ]]; then
             log_icon="📖"
         fi
         
