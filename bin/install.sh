@@ -129,7 +129,7 @@ auto_install_dependencies() {
 }
 
 check_required_tools() {
-    local required_tools=("tar" "gzip" "rsync" "pv" "bc")
+    local required_tools=("tar" "gzip" "rsync" "pv" "bc" "jq")
     local missing_tools=()
     
     # 누락된 도구 확인

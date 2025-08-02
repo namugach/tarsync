@@ -220,38 +220,66 @@ create_restore_log() {
     local delete_mode="$4"
     local rsync_output="$5"
     local restore_success="$6"
+    local duration="$7"
     
-    local log_file="$work_dir/restore.md"
-    local status_text="복구 완료"
+    local log_file="$work_dir/restore.json"
+    local timestamp=$(date -Iseconds)
+    local status="completed"
+    local mode="safe_restore"
     
     if [[ "$restore_success" == "false" ]]; then
-        status_text="복구 실패"
+        status="failed"
     fi
     
-    cat > "$log_file" << EOF
-# tarsync 복구 로그
-==========================================
-
-복구 시작: $(date -Iseconds)
-백업 이름: $backup_name
-복구 대상: $target_path
-작업 디렉토리: $work_dir
-삭제 모드: $delete_mode
-복구 상태: $status_text
-
-==========================================
-
-$rsync_output
-
-==========================================
-
-$status_text: $(date -Iseconds)
-EOF
+    if [[ "$delete_mode" == "true" ]]; then
+        mode="full_sync"
+    fi
+    
+    # 성능 데이터 추출 (rsync 출력에서)
+    local files_transferred="0"
+    local total_size="0"
+    
+    if [[ -n "$rsync_output" ]]; then
+        # rsync 통계에서 파일 수와 크기 추출
+        files_transferred=$(echo "$rsync_output" | grep -oP "Number of regular files transferred: \K\d+" || echo "0")
+        total_size=$(echo "$rsync_output" | grep -oP "Total transferred file size: \K[\d,]+" | tr -d ',' || echo "0")
+    fi
+    
+    # JSON 구조 생성
+    jq -n \
+        --arg timestamp "$timestamp" \
+        --arg backup_name "$backup_name" \
+        --arg target_path "$target_path" \
+        --arg work_directory "$work_dir" \
+        --argjson delete_mode "$delete_mode" \
+        --arg status "$status" \
+        --arg mode "$mode" \
+        --arg rsync_output "$rsync_output" \
+        --argjson duration "$duration" \
+        --argjson files_transferred "$files_transferred" \
+        --argjson total_size "$total_size" \
+        '{
+            restore: {
+                timestamp: $timestamp,
+                backup_name: $backup_name,
+                target_path: $target_path,
+                work_directory: $work_directory,
+                delete_mode: $delete_mode,
+                status: $status,
+                mode: $mode
+            },
+            rsync_output: $rsync_output,
+            performance: {
+                duration_seconds: $duration,
+                files_transferred: $files_transferred,
+                total_size: $total_size
+            }
+        }' > "$log_file"
     
     echo "📜 복구 로그가 저장되었습니다: $log_file"
 }
 
-# restore_summary.md 업데이트 함수
+# restore_summary.json 업데이트 함수
 update_restore_summary() {
     local backup_restore_dir="$1"
     local backup_name="$2"
@@ -260,42 +288,76 @@ update_restore_summary() {
     local restore_success="$5"
     local log_filename="$6"
     
-    local summary_file="$backup_restore_dir/restore_summary.md"
+    local summary_file="$backup_restore_dir/restore_summary.json"
     local current_time=$(date -Iseconds)
-    local status_icon="✅"
-    local status_text="성공"
+    local status="success"
+    local mode="safe_restore"
     
     if [[ "$restore_success" == "false" ]]; then
-        status_icon="❌"
-        status_text="실패"
+        status="failed"
     fi
     
-    # summary 파일이 없으면 헤더 생성
-    if [[ ! -f "$summary_file" ]]; then
-        cat > "$summary_file" << EOF
-# 복구 이력 요약: $backup_name
-
-이 백업의 복구 시도 이력을 기록합니다.
-
-## 백업 정보
-- **백업 이름**: $backup_name
-- **첫 복구 시도**: $current_time
-
-## 복구 이력
-
-| 날짜/시간 | 대상 경로 | 모드 | 상태 | 로그 파일 |
-|----------|----------|------|------|-----------|
-EOF
-    fi
-    
-    # 복구 모드 표시
-    local mode_text="안전 복구"
     if [[ "$delete_mode" == "true" ]]; then
-        mode_text="완전 동기화"
+        mode="full_sync"
+    fi
+    
+    # summary 파일이 없으면 초기 구조 생성
+    if [[ ! -f "$summary_file" ]]; then
+        jq -n \
+            --arg backup_name "$backup_name" \
+            --arg first_restore "$current_time" \
+            '{
+                backup_info: {
+                    backup_name: $backup_name,
+                    first_restore_attempt: $first_restore
+                },
+                restore_history: [],
+                statistics: {
+                    total_attempts: 0,
+                    successful_attempts: 0,
+                    failed_attempts: 0,
+                    last_successful: null
+                }
+            }' > "$summary_file"
     fi
     
     # 새로운 복구 기록 추가
-    echo "| $current_time | \`$target_path\` | $mode_text | $status_icon $status_text | [$log_filename](./$log_filename) |" >> "$summary_file"
+    local error_message=""
+    if [[ "$restore_success" == "false" ]]; then
+        error_message="복구 실패"
+    fi
+    
+    # 복구 기록 추가 및 통계 업데이트
+    jq \
+        --arg timestamp "$current_time" \
+        --arg target_path "$target_path" \
+        --arg mode "$mode" \
+        --arg status "$status" \
+        --arg log_file "$log_filename" \
+        --arg error "$error_message" \
+        '
+        # 새 기록 추가
+        .restore_history += [{
+            timestamp: $timestamp,
+            target_path: $target_path,
+            mode: $mode,
+            status: $status,
+            log_file: $log_file,
+            error: (if $error == "" then null else $error end)
+        }] |
+        
+        # 통계 업데이트
+        .statistics.total_attempts = (.restore_history | length) |
+        .statistics.successful_attempts = (.restore_history | map(select(.status == "success")) | length) |
+        .statistics.failed_attempts = (.restore_history | map(select(.status == "failed")) | length) |
+        .statistics.last_successful = (
+            .restore_history 
+            | map(select(.status == "success")) 
+            | if length > 0 then (sort_by(.timestamp) | last | .timestamp) else null end
+        )
+        ' "$summary_file" > "$summary_file.tmp"
+    
+    mv "$summary_file.tmp" "$summary_file"
     
     echo "📊 복구 이력이 업데이트되었습니다: $summary_file"
 }
@@ -360,7 +422,7 @@ restore() {
 
     # 복구 작업 시작 시간 기록
     local restore_start_time
-    restore_start_time=$(date -Iseconds)
+    restore_start_time=$(date +%s)
 
     # 1. 필수 도구 검증
     validate_required_tools
@@ -448,14 +510,18 @@ restore() {
     fi
     echo ""
 
+    # 복구 완료 시간 계산
+    local restore_end_time=$(date +%s)
+    local restore_duration=$((restore_end_time - restore_start_time))
+    
     # 10. 복구 로그 생성 (성공/실패 관계없이 항상 생성)
-    create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT" "$restore_success"
+    create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT" "$restore_success" "$restore_duration"
     
     # 로그 파일을 백업별 디렉토리로 저장 (정리되기 전에)
     local backup_restore_dir="$(get_restore_dir_path)/$backup_name"
     mkdir -p "$backup_restore_dir"
-    local permanent_log_file="$backup_restore_dir/$(date +%Y-%m-%d_%H-%M-%S).md"
-    cp "$work_dir/restore.md" "$permanent_log_file"
+    local permanent_log_file="$backup_restore_dir/$(date +%Y-%m-%d_%H-%M-%S).json"
+    cp "$work_dir/restore.json" "$permanent_log_file"
     echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
     
     # restore_summary.md 업데이트

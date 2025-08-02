@@ -10,6 +10,120 @@ get_script_dir() {
 # 공통 유틸리티 로드
 source "$(get_script_dir)/common.sh"
 
+# 기본 JSON 로그 생성 함수
+create_basic_json_log() {
+    local work_dir="$1"
+    local status="$2"
+    local exclude_count=$(get_exclude_paths | wc -l)
+    local timestamp=$(date -Iseconds)
+    
+    # JSON 구조 생성
+    jq -n \
+        --arg timestamp "$timestamp" \
+        --arg date "$(date '+%Y-%m-%d')" \
+        --arg time "$(date '+%H:%M:%S')" \
+        --arg source "$BACKUP_DISK" \
+        --arg destination "$work_dir" \
+        --arg status "$status" \
+        --arg created_by "tarsync shell script" \
+        --argjson exclude_count "$exclude_count" \
+        --argjson exclude_paths "$(get_exclude_paths | jq -R -s -c 'split("\n")[:-1]')" \
+        --arg user_notes "" \
+        '{
+            backup: {
+                timestamp: $timestamp,
+                date: $date,
+                time: $time,
+                source: $source,
+                destination: $destination,
+                status: $status,
+                created_by: $created_by
+            },
+            details: {
+                exclude_paths_count: $exclude_count,
+                exclude_paths: $exclude_paths,
+                file_size: "",
+                duration_seconds: 0
+            },
+            log_entries: [
+                {
+                    timestamp: $timestamp,
+                    message: "백업 시작"
+                }
+            ],
+            user_notes: $user_notes
+        }' > "$work_dir/log.json"
+}
+
+# 사용자 메모 편집 함수
+edit_user_notes() {
+    local work_dir="$1"
+    local temp_notes="/tmp/tarsync_user_notes.txt"
+    
+    # 현재 user_notes 추출
+    jq -r '.user_notes' "$work_dir/log.json" > "$temp_notes"
+    
+    echo "📝 사용자 메모를 편집합니다..."
+    echo "   (빈 파일에 원하는 메모를 작성하세요)"
+    
+    # 에디터로 편집
+    if command -v vim >/dev/null 2>&1; then
+        echo "   (저장하고 종료: :wq, 편집 없이 종료: :q)"
+        vim "$temp_notes"
+    elif command -v nano >/dev/null 2>&1; then
+        echo "   (저장하고 종료: Ctrl+X)"
+        nano "$temp_notes"
+    else
+        echo "⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 로그만 생성됩니다."
+        rm -f "$temp_notes"
+        return
+    fi
+    
+    # 편집된 내용을 JSON에 업데이트
+    local user_notes=$(cat "$temp_notes" 2>/dev/null || echo "")
+    jq --arg notes "$user_notes" '.user_notes = $notes' "$work_dir/log.json" > "$work_dir/log.json.tmp"
+    mv "$work_dir/log.json.tmp" "$work_dir/log.json"
+    
+    rm -f "$temp_notes"
+    echo "📝 사용자 메모가 저장되었습니다."
+}
+
+# JSON 로그 완료 업데이트 함수
+update_json_log_completion() {
+    local work_dir="$1"
+    local status="$2"  # "completed" 또는 "failed"
+    local file_size="$3"
+    local duration="$4"
+    
+    if [[ ! -f "$work_dir/log.json" ]]; then
+        return
+    fi
+    
+    local timestamp=$(date -Iseconds)
+    local completion_message
+    
+    if [[ "$status" == "completed" ]]; then
+        completion_message="백업 완료"
+    else
+        completion_message="백업 실패"
+    fi
+    
+    # JSON 업데이트
+    jq \
+        --arg status "$status" \
+        --arg file_size "$file_size" \
+        --argjson duration "$duration" \
+        --arg timestamp "$timestamp" \
+        --arg message "$completion_message" \
+        '.backup.status = $status |
+         .details.file_size = $file_size |
+         .details.duration_seconds = $duration |
+         .log_entries += [{"timestamp": $timestamp, "message": $message}]' \
+        "$work_dir/log.json" > "$work_dir/log.json.tmp"
+    
+    mv "$work_dir/log.json.tmp" "$work_dir/log.json"
+}
+
 # 로그 파일 작성 여부를 사용자에게 묻기
 prompt_log_creation() {
     local work_dir="$1"
@@ -21,41 +135,18 @@ prompt_log_creation() {
     user_input=${user_input:-Y}
     
     if [[ "$user_input" =~ ^[Yy]$ ]]; then
-        echo "📝 로그 파일을 생성합니다..."
+        echo "📝 JSON 로그 파일을 생성합니다..."
         
-        # 기본 로그 내용 생성
-        cat > "$work_dir/log.md" << EOF
-# Backup Log
-- Date: $(date '+%Y-%m-%d')
-- Time: $(date '+%H:%M:%S')
-- Status: In Progress
-- Created by: tarsync shell script
-
-## Backup Details
-- Source: $BACKUP_DISK
-- Destination: $work_dir
-- Exclude paths: $(get_exclude_paths | wc -l) paths
-
-## Log
-백업 시작: $(get_timestamp)
-EOF
+        # 기본 JSON 로그 생성
+        create_basic_json_log "$work_dir" "in_progress"
         
-        # 사용자가 추가 로그를 편집할 수 있도록 에디터 열기
-        if command -v vim >/dev/null 2>&1; then
-            echo "📝 로그 파일 편집을 위해 vim을 엽니다..."
-            echo "   (저장하고 종료: :wq, 편집 없이 종료: :q)"
-            vim "$work_dir/log.md"
-        elif command -v nano >/dev/null 2>&1; then
-            echo "📝 로그 파일 편집을 위해 nano를 엽니다..."
-            echo "   (저장하고 종료: Ctrl+X)"
-            nano "$work_dir/log.md"
-        else
-            echo "⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 로그만 생성됩니다."
+        # 사용자 메모 편집 옵션
+        echo -n "📝 추가 메모를 작성하시겠습니까? (y/N): "
+        read -r edit_notes
+        
+        if [[ "$edit_notes" =~ ^[Yy]$ ]]; then
+            edit_user_notes "$work_dir"
         fi
-        
-        # 백업 완료 후 상태 업데이트
-        sed -i 's/Status: In Progress/Status: Success/' "$work_dir/log.md"
-        echo "백업 완료: $(get_timestamp)" >> "$work_dir/log.md"
     else
         echo "📝 로그 생성을 건너뜁니다."
     fi
@@ -259,7 +350,8 @@ backup() {
     prompt_log_creation "$work_dir"
     echo ""
     
-    # 9. 백업 실행
+    # 9. 백업 실행 (시간 측정 시작)
+    local backup_start_time=$(date +%s)
     local exclude_options
     exclude_options=$(get_backup_tar_exclude_options)
     
@@ -269,6 +361,13 @@ backup() {
         # 9.5. 메타데이터에 백업 파일 크기 추가
         update_metadata_backup_size "$work_dir" "$tar_file"
         echo ""
+        
+        # 백업 완료 시간 계산 및 JSON 로그 업데이트
+        local backup_end_time=$(date +%s)
+        local duration=$((backup_end_time - backup_start_time))
+        local file_size=$(get_path_size_formatted "$tar_file")
+        
+        update_json_log_completion "$work_dir" "completed" "$file_size" "$duration"
         
         # 10. 백업 결과 출력
         show_backup_result "$store_dir"
@@ -281,6 +380,12 @@ backup() {
     else
         echo ""
         echo "💥 백업에 실패했습니다!"
+        
+        # 백업 실패 시간 계산 및 JSON 로그 업데이트
+        local backup_end_time=$(date +%s)
+        local duration=$((backup_end_time - backup_start_time))
+        
+        update_json_log_completion "$work_dir" "failed" "" "$duration"
         
         # 실패한 경우 작업 디렉토리 정리
         if [[ -d "$work_dir" ]]; then
