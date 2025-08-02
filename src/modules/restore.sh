@@ -9,7 +9,7 @@ get_script_dir() {
 # 공통 유틸리티 로드
 source "$(get_script_dir)/common.sh"
 
-# 백업 목록 출력 (선택용)
+# 백업 목록 출력 (선택용) - list.sh와 동일한 형식
 show_backup_list() {
     local store_dir
     store_dir=$(get_store_dir_path)
@@ -17,61 +17,118 @@ show_backup_list() {
     echo "📋 사용 가능한 백업 목록:" >&2
     echo "====================" >&2
     
-    local count=0
-    if [[ -d "$store_dir" ]]; then
-        find "$store_dir" -maxdepth 1 -type d -name "2*" | sort -r | while read -r backup_dir; do
-            local dir_name
-            dir_name=$(basename "$backup_dir")
-            
-            local tar_file="$backup_dir/tarsync.tar.gz"
-            local meta_file="$backup_dir/meta.sh"
-            local log_file="$backup_dir/log.json"
-            
-            local size_info="?"
-            local log_icon="❌"
-            local meta_icon="❌"
-            local note_icon=""
-            
-            if [[ -f "$tar_file" ]]; then
-                size_info=$(get_path_size_formatted "$tar_file")
-            fi
-            
-            if [[ -f "$log_file" ]]; then
-                log_icon="📖"
-            fi
-            
-            if [[ -f "$meta_file" ]]; then
-                meta_icon="📄"
-            fi
-            
-            if [[ -f "$backup_dir/note.md" ]]; then
-                note_icon="📝"
-            fi
-            
-            count=$((count + 1))
-            echo "  $count. $meta_icon $log_icon $note_icon $size_info - $dir_name" >&2
-        done
-    else
+    # list.sh와 동일한 로직 사용
+    local files_raw
+    files_raw=$(ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_")
+    
+    if [[ -z "$files_raw" ]]; then
         echo "  백업 디렉토리가 없습니다." >&2
+        echo "====================" >&2
+        return
     fi
+    
+    # 배열로 변환
+    local files=()
+    while IFS= read -r line; do
+        files+=("$line")
+    done <<< "$files_raw"
+    
+    local files_length=${#files[@]}
+    
+    # 최근 5개만 표시 (마지막 5개)
+    local start_index=$((files_length > 5 ? files_length - 5 : 0))
+    
+    for ((i = start_index; i < files_length; i++)); do
+        local file="${files[$i]}"
+        local file_name
+        file_name=$(echo "$file" | awk '{print $4}')
+        local backup_dir="$store_dir/$file_name"
+        
+        # 크기 정보
+        local size_bytes=0
+        local size="0B"
+        
+        # 메타데이터에서 크기 읽기 시도
+        if load_metadata "$backup_dir" 2>/dev/null; then
+            if [[ -n "$META_BACKUP_SIZE" && "$META_BACKUP_SIZE" -gt 0 ]]; then
+                size_bytes="$META_BACKUP_SIZE"
+                size=$(convert_size "$size_bytes")
+            elif [[ -d "$backup_dir" ]]; then
+                size_bytes=$(du -sb "$backup_dir" 2>/dev/null | awk '{print $1}')
+                size_bytes=${size_bytes:-0}
+                if [[ $size_bytes -gt 0 ]]; then
+                    size=$(convert_size "$size_bytes")
+                fi
+            fi
+        elif [[ -d "$backup_dir" ]]; then
+            size_bytes=$(du -sb "$backup_dir" 2>/dev/null | awk '{print $1}')
+            size_bytes=${size_bytes:-0}
+            if [[ $size_bytes -gt 0 ]]; then
+                size=$(convert_size "$size_bytes")
+            fi
+        fi
+        
+        # 아이콘 정보
+        local log_icon="❌"
+        if [[ -f "$backup_dir/log.json" ]]; then
+            log_icon="📖"
+        fi
+        
+        local note_icon=""
+        if [[ -f "$backup_dir/note.md" ]]; then
+            note_icon="📝"
+        fi
+        
+        # 백업 상태 체크
+        local integrity_status="✅"
+        local tar_file="$backup_dir/tarsync.tar.gz"
+        local meta_file="$backup_dir/meta.sh"
+        
+        if [[ -f "$tar_file" && -f "$meta_file" ]]; then
+            integrity_status="✅"
+        elif [[ -f "$tar_file" && ! -f "$meta_file" ]]; then
+            integrity_status="⚠️"
+        else
+            integrity_status="❌"
+        fi
+        
+        # list.sh와 동일한 번호 사용 (1부터 시작)
+        local current_index=$((i + 1))
+        echo "$current_index. ⬜️ $integrity_status $log_icon $note_icon $size $file" >&2
+    done
     
     echo "====================" >&2
 }
 
-# 백업 번호를 실제 백업 이름으로 변환
+# 백업 번호를 실제 백업 이름으로 변환 - list.sh와 동일한 로직
 get_backup_name_by_number() {
     local backup_number="$1"
     local store_dir
     store_dir=$(get_store_dir_path)
     
     if [[ "$backup_number" =~ ^[0-9]+$ ]]; then
-        local backup_list
-        readarray -t backup_list < <(find "$store_dir" -maxdepth 1 -type d -name "2*" | sort -r | xargs -n 1 basename)
+        # list.sh와 동일한 로직 사용
+        local files_raw
+        files_raw=$(ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_")
         
+        if [[ -z "$files_raw" ]]; then
+            return 1
+        fi
+        
+        # 배열로 변환
+        local files=()
+        while IFS= read -r line; do
+            files+=("$line")
+        done <<< "$files_raw"
+        
+        local files_length=${#files[@]}
         local array_index=$((backup_number - 1))
         
-        if [[ $array_index -ge 0 && $array_index -lt ${#backup_list[@]} ]]; then
-            echo "${backup_list[$array_index]}"
+        if [[ $array_index -ge 0 && $array_index -lt $files_length ]]; then
+            local file="${files[$array_index]}"
+            local file_name
+            file_name=$(echo "$file" | awk '{print $4}')
+            echo "$file_name"
             return 0
         else
             return 1
