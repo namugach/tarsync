@@ -221,7 +221,7 @@ create_restore_log() {
     local rsync_output="$5"
     local restore_success="$6"
     
-    local log_file="$work_dir/restore.log"
+    local log_file="$work_dir/restore.md"
     local status_text="복구 완료"
     
     if [[ "$restore_success" == "false" ]]; then
@@ -249,6 +249,55 @@ $status_text: $(date -Iseconds)
 EOF
     
     echo "📜 복구 로그가 저장되었습니다: $log_file"
+}
+
+# restore_summary.md 업데이트 함수
+update_restore_summary() {
+    local backup_restore_dir="$1"
+    local backup_name="$2"
+    local target_path="$3"
+    local delete_mode="$4"
+    local restore_success="$5"
+    local log_filename="$6"
+    
+    local summary_file="$backup_restore_dir/restore_summary.md"
+    local current_time=$(date -Iseconds)
+    local status_icon="✅"
+    local status_text="성공"
+    
+    if [[ "$restore_success" == "false" ]]; then
+        status_icon="❌"
+        status_text="실패"
+    fi
+    
+    # summary 파일이 없으면 헤더 생성
+    if [[ ! -f "$summary_file" ]]; then
+        cat > "$summary_file" << EOF
+# 복구 이력 요약: $backup_name
+
+이 백업의 복구 시도 이력을 기록합니다.
+
+## 백업 정보
+- **백업 이름**: $backup_name
+- **첫 복구 시도**: $current_time
+
+## 복구 이력
+
+| 날짜/시간 | 대상 경로 | 모드 | 상태 | 로그 파일 |
+|----------|----------|------|------|-----------|
+EOF
+    fi
+    
+    # 복구 모드 표시
+    local mode_text="안전 복구"
+    if [[ "$delete_mode" == "true" ]]; then
+        mode_text="완전 동기화"
+    fi
+    
+    # 새로운 복구 기록 추가
+    echo "| $current_time | \`$target_path\` | $mode_text | $status_icon $status_text | [$log_filename](./$log_filename) |" >> "$summary_file"
+    
+    echo "📊 복구 이력이 업데이트되었습니다: $summary_file"
 }
 
 # rsync 동기화 실행
@@ -402,13 +451,19 @@ restore() {
     # 10. 복구 로그 생성 (성공/실패 관계없이 항상 생성)
     create_restore_log "$work_dir" "$backup_name" "$target_path" "$delete_mode" "$RSYNC_OUTPUT" "$restore_success"
     
-    # 로그 파일을 restore 디렉토리로 복사 (정리되기 전에)
-    local permanent_log_file="$(get_restore_dir_path)/${backup_name}_$(date +%Y%m%d_%H%M%S).log"
-    cp "$work_dir/restore.log" "$permanent_log_file"
+    # 로그 파일을 백업별 디렉토리로 저장 (정리되기 전에)
+    local backup_restore_dir="$(get_restore_dir_path)/$backup_name"
+    mkdir -p "$backup_restore_dir"
+    local permanent_log_file="$backup_restore_dir/$(date +%Y-%m-%d_%H-%M-%S).md"
+    cp "$work_dir/restore.md" "$permanent_log_file"
     echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
+    
+    # restore_summary.md 업데이트
+    local log_filename=$(basename "$permanent_log_file")
+    update_restore_summary "$backup_restore_dir" "$backup_name" "$target_path" "$delete_mode" "$restore_success" "$log_filename"
     echo ""
     
-    # 복구 실패 시 중단
+    # 복구 실패 시 중단 (summary는 이미 업데이트됨)
     if [[ "$restore_success" == "false" ]]; then
         rm -rf "$work_dir"
         echo "❌ 복구를 중단합니다."
