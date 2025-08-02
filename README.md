@@ -1,6 +1,6 @@
 # Tarsync - 시스템 백업 및 복구 도구
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](docs/meta/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](docs/meta/CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](docs/meta/LICENSE)
 [![Shell](https://img.shields.io/badge/shell-bash-blue.svg)](https://www.gnu.org/software/bash/)
 
@@ -21,6 +21,9 @@ sudo tarsync backup
 
 # 백업 목록 확인
 tarsync list
+
+# 백업 로그 및 메모 보기
+tarsync log 1
 
 # 백업 복구 실행
 sudo tarsync restore
@@ -76,7 +79,7 @@ sudo tarsync restore [백업_번호] [복구_경로]
 - **안전 복구**: 기존 파일을 보존하면서 백업 내용을 추가/업데이트
 - **완전 동기화**: 백업 시점과 완전히 동일한 상태로 복구 (기존 파일 삭제)
 
-### list - 백업 목록 관리
+### list - 백업 목록 표시
 ```bash
 # 전체 백업 목록 표시
 tarsync list
@@ -84,14 +87,29 @@ tarsync list
 # 페이지별 목록 표시 (10개씩, 1페이지)
 tarsync list 10 1
 
-# 특정 백업 선택하여 로그 표시
-tarsync list 10 1 3
+# 페이지별 목록 표시 (2개씩, 마지막 페이지)
+tarsync list 2 -1
+```
 
+### log - 백업 로그 및 메모 보기
+```bash
+# 백업 번호로 로그 보기
+tarsync log 1
+
+# 백업 이름으로 로그 보기
+tarsync log 2025_08_02_PM_04_16_40
+```
+
+### delete - 백업 삭제
+```bash
 # 백업 삭제
-tarsync list delete [백업_이름]
+sudo tarsync delete [백업_이름]
+```
 
+### details - 백업 상세 정보
+```bash
 # 백업 상세 정보
-tarsync list details [백업_이름]
+tarsync details [백업_이름]
 ```
 
 ## 설정
@@ -131,12 +149,13 @@ EXCLUDE_PATHS=(
 ```
 /mnt/backup/tarsync/
 ├── store/                          # 백업 저장소
-│   └── 2025_01_15_오후_02_30_45/    # 백업 디렉토리 (날짜별)
+│   └── 2025_08_02_PM_04_16_40/     # 백업 디렉토리 (AM/PM 형식)
 │       ├── tarsync.tar.gz          # 압축된 백업 파일
 │       ├── meta.sh                 # 메타데이터 (크기, 날짜, 제외경로)
-│       └── log.md                  # 백업 로그 (선택사항)
+│       ├── log.json                # 백업 로그 (JSON 형식)
+│       └── note.md                 # 사용자 메모 (선택적)
 └── restore/                        # 복구 작업 로그
-    └── restore_20250115_143045.log # 복구 작업 로그
+    └── restore_20250802_161640.log # 복구 작업 로그
 ```
 
 ## 사용 예시
@@ -160,11 +179,15 @@ tarsync list
 # 페이지별 목록 (5개씩, 2페이지)
 tarsync list 5 2
 
-# 최신 백업 선택하여 로그 확인
-tarsync list 10 1 1
+# 마지막 페이지 확인 (2개씩 표시)
+tarsync list 2 -1
+
+# 백업 로그 및 메모 확인
+tarsync log 1
+tarsync log 2025_08_02_PM_04_16_40
 
 # 오래된 백업 삭제
-tarsync list delete 2025_01_10_오전_09_15_30
+sudo tarsync delete 2025_08_02_PM_04_16_40
 ```
 
 ### 백업 복구
