@@ -182,6 +182,30 @@ get_original_source_from_log() {
     fi
 }
 
+# log.json에서 exclude_paths 추출
+get_exclude_paths_from_log() {
+    local backup_dir="$1"
+    local log_file="$backup_dir/log.json"
+    local -n exclude_paths_ref="$2"
+
+    exclude_paths_ref=()
+
+    if [[ -f "$log_file" ]]; then
+        # jq로 exclude_paths 배열을 읽어서 bash 배열로 변환
+        while IFS= read -r path; do
+            if [[ -n "$path" && "$path" != "null" ]]; then
+                exclude_paths_ref+=("$path")
+            fi
+        done < <(jq -r '.details.exclude_paths[]?' "$log_file" 2>/dev/null)
+        
+        echo "📋 log.json에서 ${#exclude_paths_ref[@]}개의 제외 경로를 로드했습니다."
+        return 0
+    else
+        echo "⚠️ log.json을 찾을 수 없습니다. 메타데이터의 제외 경로를 사용합니다."
+        return 1
+    fi
+}
+
 # 복구 대상 경로 확인
 validate_restore_target() {
     local target_path="$1"
@@ -556,10 +580,28 @@ restore() {
     fi
     echo ""
 
-    # 8. rsync 동기화
+    # 8. rsync 동기화 - log.json에서 제외 경로 로드
     local exclude_array=()
-    for exclude_path in "${META_EXCLUDE[@]}"; do
-        exclude_array+=("--exclude=$exclude_path")
+    local log_exclude_paths=()
+    
+    # log.json에서 exclude_paths 로드 시도
+    if get_exclude_paths_from_log "$backup_dir" log_exclude_paths; then
+        echo "✅ log.json에서 제외 경로를 성공적으로 로드했습니다."
+        for exclude_path in "${log_exclude_paths[@]}"; do
+            exclude_array+=("--exclude=$exclude_path")
+        done
+    else
+        echo "⚠️ log.json에서 제외 경로를 로드할 수 없습니다. 메타데이터를 사용합니다."
+        for exclude_path in "${META_EXCLUDE[@]}"; do
+            exclude_array+=("--exclude=$exclude_path")
+        done
+    fi
+    
+    # 시스템 중요 경로 추가 보호
+    local critical_paths=("/boot" "/etc/fstab" "/etc/grub*")
+    echo "🛡️ 시스템 중요 경로 추가 보호 중..."
+    for critical_path in "${critical_paths[@]}"; do
+        exclude_array+=("--exclude=$critical_path")
     done
 
     # 9. rsync 실행 및 로그 생성 (성공/실패 관계없이)
