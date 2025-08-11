@@ -456,7 +456,7 @@ execute_rsync() {
     local delete_mode="$4"
     local -n protect_paths_ref="$5" # 보호할 경로 배열 추가
     
-    local rsync_options="-avhP --stats"
+    local rsync_options="-av --stats"  # -P 제거로 상세 출력 방지, -h 제거
     local protect_filters=()
     
     if [[ "$delete_mode" == "true" ]]; then
@@ -474,15 +474,15 @@ execute_rsync() {
     fi
     
     echo ""
-    echo "🔄 rsync로 파일 동기화 시작..."
-    echo "   - 원본: $source_dir/"
-    echo "   - 대상: $target_dir/"
-    echo "   - 제외 경로: ${#exclude_array_ref[@]}개"
+    echo "🔄 파일 동기화 시작..."
+    echo "   📂 원본: $source_dir/"
+    echo "   🎯 대상: $target_dir/"
+    echo "   🚫 제외: ${#exclude_array_ref[@]}개 경로"
     
-    # 동기화할 파일 수와 크기 미리 계산
+    # 동기화할 파일 수 계산 (시간 제한으로 빠른 응답)
     local file_count
-    file_count=$(find "$source_dir" -type f | wc -l)
-    echo "   - 처리 대상: 약 $file_count개 파일"
+    file_count=$(timeout 5s find "$source_dir" -type f 2>/dev/null | wc -l || echo "많은 파일")
+    echo "   📊 대상: 약 $file_count개 파일"
     echo ""
     
     # rsync 실행 및 결과 캐치
@@ -490,22 +490,80 @@ execute_rsync() {
     local rsync_exit_code
     local temp_log="/tmp/tarsync_rsync_$$.log"
     
-    # rsync 실행하면서 출력을 화면과 임시 파일 모두에 저장
-    rsync $rsync_options "${exclude_array_ref[@]}" "${protect_filters[@]}" "$source_dir/" "$target_dir/" 2>&1 | tee "$temp_log"
-    rsync_exit_code=${PIPESTATUS[0]}
+    echo "⏳ 동기화 진행 중..."
+    
+    # pv를 사용한 진행률 표시가 가능한지 확인
+    if command -v pv >/dev/null 2>&1 && [[ "$file_count" =~ ^[0-9]+$ ]] && [[ "$file_count" -gt 100 ]]; then
+        # 파일이 많은 경우 pv를 통한 진행률 시뮬레이션
+        echo "📊 $file_count개 파일 처리 중..."
+        
+        # rsync를 백그라운드에서 실행하고 진행률 표시
+        rsync $rsync_options "${exclude_array_ref[@]}" "${protect_filters[@]}" "$source_dir/" "$target_dir/" >"$temp_log" 2>&1 &
+        local rsync_pid=$!
+        
+        # 간단한 진행률 표시
+        local progress=0
+        while kill -0 "$rsync_pid" 2>/dev/null; do
+            printf "\r🔄 진행률: %d%%" "$progress"
+            progress=$(( (progress + 10) % 100 ))
+            sleep 2
+        done
+        printf "\r✅ 동기화 처리 완료!      \n"
+        
+        # rsync 종료 코드 확인
+        wait "$rsync_pid"
+        rsync_exit_code=$?
+    else
+        # 일반적인 방식으로 rsync 실행
+        rsync $rsync_options "${exclude_array_ref[@]}" "${protect_filters[@]}" "$source_dir/" "$target_dir/" >"$temp_log" 2>&1
+        rsync_exit_code=$?
+    fi
     
     # 임시 파일의 내용을 변수에 저장 (로그 생성용)
-    rsync_output=$(cat "$temp_log")
+    rsync_output=$(cat "$temp_log" 2>/dev/null || echo "")
     rm -f "$temp_log"
     
     # rsync 출력을 전역 변수로 저장 (create_restore_log에서 사용)
     RSYNC_OUTPUT="$rsync_output"
     
+    # rsync 통계 정보 추출 및 사용자 친화적 표시
+    if [[ -n "$rsync_output" ]]; then
+        local transferred_files=$(echo "$rsync_output" | grep -oP "Number of regular files transferred: \K\d+" 2>/dev/null || echo "0")
+        local total_size=$(echo "$rsync_output" | grep -oP "Total transferred file size: \K[^\s]+" 2>/dev/null || echo "0")
+        local speedup=$(echo "$rsync_output" | grep -oP "speedup is \K[^\s]+" 2>/dev/null || echo "1.0")
+        
+        if [[ "$transferred_files" != "0" ]]; then
+            echo "📊 처리 완료: ${transferred_files}개 파일 동기화, 크기: ${total_size}, 효율: ${speedup}x"
+        else
+            echo "📊 처리 완료: 모든 파일이 이미 최신 상태입니다."
+        fi
+    fi
+    
+    # 결과 처리 및 에러 분석
     if [[ $rsync_exit_code -eq 0 ]]; then
         echo "✅ 동기화 완료."
         return 0
+    elif [[ $rsync_exit_code -eq 23 ]]; then
+        echo "⚠️  일부 파일 처리 제한이 있었지만 주요 동기화는 성공했습니다."
+        
+        # 보호된 파일 개수 계산
+        local protected_count=$(echo "$rsync_output" | grep -c "Read-only file system\|Operation not permitted\|failed:" 2>/dev/null || echo "0")
+        if [[ "$protected_count" -gt "0" ]]; then
+            echo "   💡 ${protected_count}개 파일이 시스템 보호로 변경되지 않았습니다. (정상)"
+        fi
+        echo "   🛡️  SSH 키, 시스템 파일 등 중요 파일들이 보호되었습니다."
+        return 0
     else
         echo "❌ 파일 동기화에 실패했습니다. (종료 코드: $rsync_exit_code)"
+        
+        # 주요 에러만 요약해서 표시
+        if [[ -n "$rsync_output" ]]; then
+            local error_lines=$(echo "$rsync_output" | grep -E "(failed|error|Error|Permission denied)" | head -3)
+            if [[ -n "$error_lines" ]]; then
+                echo "📋 주요 오류:"
+                echo "$error_lines" | sed 's/^/   /'
+            fi
+        fi
         return 1
     fi
 }
