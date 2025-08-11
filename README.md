@@ -1,6 +1,6 @@
 # Tarsync - 시스템 백업 및 복구 도구
 
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](docs/meta/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](docs/meta/LICENSE)
 [![Shell](https://img.shields.io/badge/shell-bash-blue.svg)](https://www.gnu.org/software/bash/)
 
@@ -77,7 +77,7 @@ sudo tarsync restore [백업_번호] [복구_경로]
 ```
 - 백업을 선택하여 지정된 위치로 복구합니다
 - **안전 복구**: 기존 파일을 보존하면서 백업 내용을 추가/업데이트
-- **완전 동기화**: 백업 시점과 완전히 동일한 상태로 복구 (기존 파일 삭제)
+- **완전 동기화**: 백업 시점과 완전히 동일한 상태로 복구 (🛡️ **v1.1.1**: 시스템 중요 경로 보호 강화**)
 
 ### list - 백업 목록 표시
 ```bash
@@ -217,7 +217,8 @@ sudo tarsync restore 2
 
 ### 🔒 안전성
 - **선택적 복구**: 안전 복구와 완전 동기화 모드 제공
-- **유효성 검증**: 백업 파일 무결성 자동 확인
+- **시스템 보호**: 완전 동기화 시 중요 시스템 경로(`/proc`, `/sys`, `/dev`) 보호 **(v1.1.1 강화)**
+- **유효성 검증**: 백업 파일 무결성 자동 확인  
 - **에러 처리**: 작업 실패 시 자동 정리 및 롤백
 
 ### ⚡ 성능
@@ -227,9 +228,18 @@ sudo tarsync restore 2
 
 ## 문서
 
-- [사용자 매뉴얼](docs/MANUAL.md) - 상세한 사용 방법
-- [변경 이력](docs/meta/CHANGELOG.md) - 버전별 변경 사항
+- [변경 이력](CHANGELOG.md) - 버전별 변경 사항
+- [사용자 매뉴얼](docs/MANUAL.md) - 상세한 사용 방법  
 - [프로젝트 소개](docs/meta/DESCRIPTION.md) - 상세한 프로젝트 설명
+
+## 🚨 중요 보안 업데이트 (v1.1.1)
+
+**버전 1.1.1에서 완전 동기화 모드의 치명적인 보안 취약점을 수정했습니다.**
+
+- **문제**: 완전 동기화 모드(`--delete`) 사용 시 시스템 중요 디렉토리가 삭제될 수 있었음
+- **영향**: `/proc`, `/sys`, `/dev` 등 시스템 핵심 경로가 삭제되어 시스템 파괴 가능성
+- **해결**: `rsync --filter='protect'` 옵션을 통한 제외 경로 보호 강화
+- **권장사항**: 이전 버전 사용자는 즉시 업데이트 권장
 
 ## 라이센스
 
