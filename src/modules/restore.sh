@@ -456,9 +456,20 @@ execute_rsync() {
     local delete_mode="$4" # 삭제 모드 추가
     
     local rsync_options="-avhP --stats"
+    local protect_filters=()
+    
     if [[ "$delete_mode" == "true" ]]; then
         rsync_options+=" --delete"
-        echo "🔥 완전 동기화 모드로 실행합니다. (백업에 없는 파일은 삭제됩니다)"
+        
+        # 제외된 경로들을 삭제로부터 보호 (전역 변수 CURRENT_EXCLUDE_PATHS 사용)
+        if [[ ${#CURRENT_EXCLUDE_PATHS[@]} -gt 0 ]]; then
+            for exclude_path in "${CURRENT_EXCLUDE_PATHS[@]}"; do
+                protect_filters+=("--filter=protect $exclude_path")
+            done
+            echo "🛡️  완전 동기화 모드: ${#CURRENT_EXCLUDE_PATHS[@]}개 경로 삭제 보호"
+        fi
+        
+        echo "🔥 완전 동기화 모드로 실행합니다. (백업에 없는 파일은 삭제되지만 제외 경로는 보호됩니다)"
     fi
     
     echo ""
@@ -479,7 +490,7 @@ execute_rsync() {
     local temp_log="/tmp/tarsync_rsync_$$.log"
     
     # rsync 실행하면서 출력을 화면과 임시 파일 모두에 저장
-    rsync $rsync_options "${exclude_array_ref[@]}" "$source_dir/" "$target_dir/" 2>&1 | tee "$temp_log"
+    rsync $rsync_options "${exclude_array_ref[@]}" "${protect_filters[@]}" "$source_dir/" "$target_dir/" 2>&1 | tee "$temp_log"
     rsync_exit_code=${PIPESTATUS[0]}
     
     # 임시 파일의 내용을 변수에 저장 (로그 생성용)
@@ -606,6 +617,14 @@ restore() {
 
     # 9. rsync 실행 및 로그 생성 (성공/실패 관계없이)
     local restore_success=true
+    
+    # execute_rsync 함수에서 보호할 경로 배열을 전달하기 위해 전역 변수로 설정
+    if [[ ${#log_exclude_paths[@]} -gt 0 ]]; then
+        CURRENT_EXCLUDE_PATHS=("${log_exclude_paths[@]}")
+    else
+        CURRENT_EXCLUDE_PATHS=("${META_EXCLUDE[@]}")
+    fi
+    
     if ! execute_rsync "$work_dir" "$target_path" exclude_array "$delete_mode"; then
         restore_success=false
         echo "❌ 파일 동기화에 실패했습니다."
