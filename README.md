@@ -1,6 +1,6 @@
 # Tarsync - 시스템 백업 및 복구 도구
 
-[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](docs/meta/LICENSE)
 [![Shell](https://img.shields.io/badge/shell-bash-blue.svg)](https://www.gnu.org/software/bash/)
 
@@ -50,6 +50,7 @@ sudo ./bin/uninstall.sh
 - **📋 목록 관리**: 페이지네이션과 선택 기능을 지원하는 백업 목록 관리
 - **🛡️ 권한 보존**: ACL과 확장 속성을 포함한 완전한 권한 보존
 - **🎯 선택적 제외**: 임시 파일, 캐시 등 불필요한 파일 자동 제외
+- **✨ 개선된 UI**: 직관적이고 깔끔한 복구 진행 상태 표시 **(v1.1.2 NEW!)**
 
 ## 시스템 요구사항
 
@@ -77,7 +78,7 @@ sudo tarsync restore [백업_번호] [복구_경로]
 ```
 - 백업을 선택하여 지정된 위치로 복구합니다
 - **안전 복구**: 기존 파일을 보존하면서 백업 내용을 추가/업데이트
-- **완전 동기화**: 백업 시점과 완전히 동일한 상태로 복구 (🛡️ **v1.1.1**: 시스템 중요 경로 보호 강화**)
+- **완전 동기화**: 백업 시점과 완전히 동일한 상태로 복구 (🛡️ **v1.1.1**: 시스템 중요 경로 보호 강화, ✨ **v1.1.2**: 깔끔한 진행 상태 표시**)
 
 ### list - 백업 목록 표시
 ```bash
@@ -212,6 +213,7 @@ sudo tarsync restore 2
 
 ### 🚀 사용 편의성
 - **진행률 표시**: 실시간 백업/복구 진행률 모니터링
+- **깔끔한 UI**: 불필요한 기술적 출력 없이 핵심 정보만 표시 **(v1.1.2 개선)**
 - **인터랙티브 인터페이스**: 직관적인 메뉴 기반 선택
 - **로그 시스템**: 작업 내역 자동 기록
 

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-08-12
+
+### Improved
+- **Enhanced rsync UI**: Significantly improved user experience during file synchronization
+- **Clean output display**: Removed verbose rsync output and replaced with user-friendly progress indicators
+- **Better error communication**: Transformed technical errors into understandable status messages
+- **Progress visualization**: Added progress tracking for large file operations
+
+### Changed
+- Modified rsync options from `-avhP --stats` to `-av --stats` to reduce verbose output
+- Enhanced error handling for rsync exit code 23 (partial transfer) to show as successful protection
+- Improved file count calculation with timeout to prevent long delays
+- Added intelligent error summarization showing only relevant information
+
+### Technical Details
+- Updated `src/modules/restore.sh:execute_rsync()` function for cleaner output management
+- Implemented background rsync execution with progress simulation for large operations
+- Added protected file counting and user-friendly status messages
+- Enhanced error categorization and filtering for better user understanding
+
+### User Experience
+- Reduced output from dozens/hundreds of lines to 5-8 essential information lines
+- Changed error perception from "failure" to "protection" for read-only system files
+- Added emoji-based visual indicators for different operation states
+- Improved clarity with structured information display
+
 ## [1.1.1] - 2025-08-11
 
 ### Security
