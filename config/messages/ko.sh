@@ -1,0 +1,223 @@
+#!/bin/bash
+
+# 한국어 메시지 파일 - Tarsync
+# Korean messages for Tarsync
+
+# 언어 메타데이터
+LANG_CODE="ko"
+LANG_NAME="한국어"
+LANG_LOCALE="ko_KR.UTF-8"
+LANG_TIMEZONE="Asia/Seoul"
+LANG_DIRECTION="ltr"
+LANG_VERSION="1.0"
+
+# ======================
+# CLI 인터페이스 메시지
+# ======================
+
+# 도움말 시스템
+MSG_HELP_USAGE="사용법: tarsync <명령어> [인수]"
+MSG_HELP_DESCRIPTION="Shell Script로 재작성된 안정적인 백업 및 복구 도구"
+MSG_HELP_COMMANDS="주요 명령어:"
+MSG_HELP_BACKUP="backup [경로]           # 특정 경로 또는 전체 시스템을 백업합니다. (기본값: /)"
+MSG_HELP_RESTORE="restore [백업명] [대상]   # 선택한 백업을 지정한 경로로 복구합니다."
+MSG_HELP_LIST="list                    # 생성된 백업 목록을 최신순으로 표시합니다."
+MSG_HELP_LOG="log <번호|백업명>         # 백업의 메모와 로그를 표시합니다."
+MSG_HELP_DELETE="delete <백업명>          # 지정한 백업을 영구적으로 삭제합니다."
+MSG_HELP_DETAILS="details <백업명>         # 백업의 상세 정보를 표시합니다."
+MSG_HELP_OTHER_COMMANDS="기타 명령어:"
+MSG_HELP_VERSION="version                 # 프로그램 버전 정보를 표시합니다."
+MSG_HELP_HELP="help                    # 이 도움말을 표시합니다."
+MSG_HELP_EXAMPLES="사용 예시:"
+MSG_HELP_EXAMPLE_BACKUP="sudo %s backup /home/user    # /home/user 디렉토리 백업"
+MSG_HELP_EXAMPLE_RESTORE="sudo %s restore              # 대화형 모드로 복구 시작"
+MSG_HELP_EXAMPLE_RESTORE_TARGET="sudo %s restore 1 /tmp/res   # 1번 백업을 /tmp/res에 복구"
+MSG_HELP_EXAMPLE_LIST="%s list                      # 백업 목록 보기"
+MSG_HELP_EXAMPLE_LOG="%s log 7                     # 7번 백업의 메모와 로그 보기"
+MSG_HELP_EXAMPLE_DELETE="sudo %s delete backup_name   # 특정 백업 삭제"
+
+# 에러 메시지
+MSG_ERROR_SUDO_REQUIRED="❌ 시스템 백업/복구를 위해서는 sudo 권한이 필요합니다"
+MSG_ERROR_SUDO_HINT="💡 다음과 같이 실행해주세요: %ssudo %s %s%s"
+MSG_ERROR_SUDO_REASON="📖 권한이 필요한 이유:"
+MSG_ERROR_SUDO_REASON_FILES="  • 시스템 파일 읽기 권한 (/etc, /var, /root 등)"
+MSG_ERROR_SUDO_REASON_BACKUP="  • 백업 파일 생성 권한"
+MSG_ERROR_SUDO_REASON_RESTORE="  • 복구 시 원본 권한 복원"
+MSG_ERROR_INVALID_COMMAND="잘못된 명령어: %s"
+MSG_ERROR_MISSING_ARGUMENT="필수 인수가 누락되었습니다: %s"
+MSG_ERROR_INVALID_PATH="잘못된 경로: %s"
+MSG_ERROR_PERMISSION_DENIED="권한이 거부되었습니다: %s"
+
+# 버전 메시지
+MSG_VERSION_HEADER="%s v%s"
+MSG_VERSION_DESCRIPTION="Shell Script 기반 백업 도구"
+MSG_VERSION_FEATURES="📦 기능:"
+MSG_VERSION_FEATURE_BACKUP="  • tar+gzip 압축 백업"
+MSG_VERSION_FEATURE_RESTORE="  • rsync 기반 복구"
+MSG_VERSION_FEATURE_LIST="  • 페이지네이션 목록 관리"
+MSG_VERSION_FEATURE_INTEGRITY="  • 백업 무결성 검사"
+MSG_VERSION_FEATURE_LOG="  • 로그 관리"
+MSG_VERSION_DEPENDENCIES="🛠️  의존성:"
+MSG_VERSION_DEPS_LIST="  • tar, gzip, rsync, pv, bc, jq"
+MSG_VERSION_COPYRIGHT="Copyright (c) %s"
+
+# ======================
+# 백업 모듈 메시지
+# ======================
+
+# 백업 상태
+MSG_BACKUP_START="백업 프로세스를 시작합니다..."
+MSG_BACKUP_PROGRESS="진행률: %s%% - %s"
+MSG_BACKUP_COMPLETE="✅ 백업이 성공적으로 완료되었습니다"
+MSG_BACKUP_FAILED="❌ 백업에 실패했습니다: %s"
+MSG_BACKUP_CREATING_ARCHIVE="압축 아카이브를 생성하고 있습니다..."
+MSG_BACKUP_CALCULATING_SIZE="백업 크기를 계산하고 있습니다..."
+MSG_BACKUP_PREPARING="백업을 준비하고 있습니다..."
+MSG_BACKUP_FINALIZING="백업을 마무리하고 있습니다..."
+
+# 사용자 메모 편집
+MSG_NOTES_EDIT="📝 사용자 메모를 편집합니다..."
+MSG_NOTES_EDIT_INFO="   (빈 파일에 원하는 메모를 작성하세요)"
+MSG_NOTES_EDITOR_VIM="   (저장하고 종료: :wq, 편집 없이 종료: :q)"
+MSG_NOTES_EDITOR_NANO="   (저장하고 종료: Ctrl+X)"
+MSG_NOTES_NO_EDITOR="⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 로그만 생성됩니다."
+MSG_NOTES_SAVED="📝 사용자 메모가 저장되었습니다."
+
+# 백업 생성
+MSG_BACKUP_CREATING_DIR="백업 디렉토리를 생성합니다: %s"
+MSG_BACKUP_CREATING_META="백업 메타데이터를 생성하고 있습니다..."
+MSG_BACKUP_CREATING_LOG="백업 로그를 생성하고 있습니다..."
+MSG_BACKUP_DISK_SPACE_CHECK="사용 가능한 디스크 공간을 확인하고 있습니다..."
+MSG_BACKUP_EXCLUDE_PATHS="백업에서 %d개 경로를 제외합니다"
+
+# ======================
+# 복구 모듈 메시지
+# ======================
+
+# 복구 선택
+MSG_RESTORE_SELECT="복구할 백업을 선택하세요:"
+MSG_RESTORE_CONFIRM="%s을(를) %s로 복구하시겠습니까? (y/N)"
+MSG_RESTORE_COMPLETE="✅ 복구가 성공적으로 완료되었습니다"
+MSG_RESTORE_FAILED="❌ 복구에 실패했습니다: %s"
+MSG_RESTORE_CANCELLED="복구가 취소되었습니다"
+
+# 복구 모드
+MSG_RESTORE_MODE_SELECT="복구 모드를 선택하세요:"
+MSG_RESTORE_MODE_SAFE="안전 모드 (기존 파일 보존)"
+MSG_RESTORE_MODE_FULL="완전 모드 (기존 파일 덮어쓰기)"
+MSG_RESTORE_PREPARING="복구 작업을 준비하고 있습니다..."
+MSG_RESTORE_EXTRACTING="백업 아카이브를 추출하고 있습니다..."
+MSG_RESTORE_COPYING="파일을 목적지로 복사하고 있습니다..."
+MSG_RESTORE_SETTING_PERMISSIONS="파일 권한을 설정하고 있습니다..."
+
+# ======================
+# 목록 관리 메시지
+# ======================
+
+# 백업 목록
+MSG_LIST_HEADER="사용 가능한 백업 목록 (총 %d개 중 %d개 표시):"
+MSG_LIST_NO_BACKUPS="백업을 찾을 수 없습니다"
+MSG_LIST_PAGE_INFO="페이지 %d / %d (다음 페이지: Enter, 종료: 'q')"
+MSG_LIST_LOADING="백업 목록을 로딩하고 있습니다..."
+MSG_LIST_COLUMN_NO="번호"
+MSG_LIST_COLUMN_NAME="이름"
+MSG_LIST_COLUMN_SIZE="크기"
+MSG_LIST_COLUMN_DATE="날짜"
+MSG_LIST_COLUMN_SOURCE="소스"
+
+# 백업 상세정보
+MSG_DETAILS_SIZE="크기: %s"
+MSG_DETAILS_DATE="생성일: %s"
+MSG_DETAILS_SOURCE="소스: %s"
+MSG_DETAILS_DESTINATION="대상: %s"
+MSG_DETAILS_DURATION="소요시간: %s"
+MSG_DETAILS_STATUS="상태: %s"
+MSG_DETAILS_EXCLUDE_COUNT="제외된 경로: %d개"
+MSG_DETAILS_NOTES="메모: %s"
+
+# 로그 표시
+MSG_LOG_HEADER="=== 백업 로그: %s ==="
+MSG_LOG_NOTES_HEADER="📝 사용자 메모:"
+MSG_LOG_DETAILS_HEADER="📊 백업 상세정보:"
+MSG_LOG_NO_NOTES="사용자 메모가 없습니다"
+MSG_LOG_NO_LOG_FILE="로그 파일을 찾을 수 없습니다"
+
+# ======================
+# 시스템 메시지
+# ======================
+
+# 권한 관리
+MSG_SYSTEM_SUDO_REQUIRED="관리자 권한이 필요합니다"
+MSG_SYSTEM_PERMISSION_DENIED="권한이 거부되었습니다: %s"
+MSG_SYSTEM_CHECKING_PERMISSIONS="권한을 확인하고 있습니다..."
+
+# 파일 시스템
+MSG_SYSTEM_CREATING_DIR="디렉토리를 생성합니다: %s"
+MSG_SYSTEM_FILE_NOT_FOUND="파일을 찾을 수 없습니다: %s"
+MSG_SYSTEM_DISK_SPACE="사용 가능한 공간: %s"
+MSG_SYSTEM_DIRECTORY_EXISTS="디렉토리가 이미 존재합니다: %s"
+MSG_SYSTEM_COPYING_FILE="파일을 복사하고 있습니다: %s"
+MSG_SYSTEM_REMOVING_FILE="파일을 제거하고 있습니다: %s"
+
+# 프로세스 관리
+MSG_SYSTEM_STARTING_PROCESS="프로세스를 시작합니다: %s"
+MSG_SYSTEM_PROCESS_COMPLETE="프로세스가 완료되었습니다: %s"
+MSG_SYSTEM_PROCESS_FAILED="프로세스가 실패했습니다: %s"
+
+# ======================
+# 설치 메시지
+# ======================
+
+# 설치 프로세스
+MSG_INSTALL_START="tarsync 설치를 시작합니다..."
+MSG_INSTALL_COMPLETE="✅ 설치가 성공적으로 완료되었습니다"
+MSG_INSTALL_FAILED="❌ 설치에 실패했습니다: %s"
+MSG_INSTALL_ALREADY_INSTALLED="Tarsync가 이미 설치되어 있습니다"
+
+# 의존성 체크
+MSG_INSTALL_CHECKING_DEPS="필수 의존성을 확인하고 있습니다..."
+MSG_INSTALL_DEPS_OK="✅ 모든 의존성이 충족되었습니다"
+MSG_INSTALL_DEPS_MISSING="⚠️  다음 필수 도구들이 설치되지 않았습니다: %s"
+MSG_INSTALL_DEPS_INSTALL_CMD="설치 명령어: %s"
+
+# 자동 설치
+MSG_INSTALL_AUTO_DEPS="의존성을 자동으로 설치하고 있습니다..."
+MSG_INSTALL_AUTO_SUCCESS="✅ 의존성이 성공적으로 설치되었습니다"
+MSG_INSTALL_AUTO_FAILED="❌ 자동 설치에 실패했습니다"
+MSG_INSTALL_MANUAL_GUIDE="📋 수동 설치 안내:"
+
+# 파일 작업
+MSG_INSTALL_COPYING_FILES="프로그램 파일을 복사하고 있습니다..."
+MSG_INSTALL_SETTING_PERMISSIONS="파일 권한을 설정하고 있습니다..."
+MSG_INSTALL_CREATING_SYMLINK="심볼릭 링크를 생성하고 있습니다..."
+MSG_INSTALL_CONFIGURING_SYSTEM="시스템 설정을 구성하고 있습니다..."
+
+# 언어 설정
+MSG_INSTALL_LANGUAGE_SETUP="언어 설정을 구성하고 있습니다..."
+MSG_INSTALL_LANGUAGE_DETECTION="시스템 언어를 감지했습니다: %s"
+MSG_INSTALL_LANGUAGE_CONFIG="언어를 설정하고 있습니다: %s"
+MSG_INSTALL_LANGUAGE_FILES_COPIED="언어 파일이 성공적으로 복사되었습니다"
+
+# 제거 프로세스
+MSG_UNINSTALL_START="tarsync 제거를 시작합니다..."
+MSG_UNINSTALL_CONFIRM="정말로 tarsync를 제거하시겠습니까? (y/N)"
+MSG_UNINSTALL_CANCELLED="제거가 취소되었습니다"
+MSG_UNINSTALL_COMPLETE="✅ Tarsync가 성공적으로 제거되었습니다"
+MSG_UNINSTALL_BACKUP_PRESERVED="백업 데이터가 다음 위치에 보존되었습니다: %s"
+
+# ======================
+# 일반 메시지
+# ======================
+
+MSG_YES="y"
+MSG_NO="n"
+MSG_CONTINUE="계속"
+MSG_CANCEL="취소"
+MSG_LOADING="로딩 중..."
+MSG_PLEASE_WAIT="잠시 기다려주세요..."
+MSG_DONE="완료"
+MSG_SUCCESS="성공"
+MSG_FAILED="실패"
+MSG_WARNING="경고"
+MSG_ERROR="오류"
+MSG_INFO="정보"

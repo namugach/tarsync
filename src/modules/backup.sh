@@ -10,6 +10,13 @@ get_script_dir() {
 # 공통 유틸리티 로드
 source "$(get_script_dir)/common.sh"
 
+# 메시지 시스템 로드
+SCRIPT_DIR="$(get_script_dir)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
 # 기본 JSON 로그 생성 함수
 create_basic_json_log() {
     local work_dir="$1"
@@ -64,18 +71,18 @@ edit_user_notes() {
     # 현재 user_notes 추출
     jq -r '.user_notes' "$work_dir/log.json" > "$temp_notes"
     
-    echo "📝 사용자 메모를 편집합니다..."
-    echo "   (빈 파일에 원하는 메모를 작성하세요)"
+    msg "MSG_NOTES_EDIT"
+    msg "MSG_NOTES_EDIT_INFO"
     
     # 에디터로 편집
     if command -v vim >/dev/null 2>&1; then
-        echo "   (저장하고 종료: :wq, 편집 없이 종료: :q)"
+        msg "MSG_NOTES_EDITOR_VIM"
         vim "$temp_notes"
     elif command -v nano >/dev/null 2>&1; then
-        echo "   (저장하고 종료: Ctrl+X)"
+        msg "MSG_NOTES_EDITOR_NANO"
         nano "$temp_notes"
     else
-        echo "⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 로그만 생성됩니다."
+        msg "MSG_NOTES_NO_EDITOR"
         rm -f "$temp_notes"
         return
     fi
@@ -86,7 +93,7 @@ edit_user_notes() {
     mv "$work_dir/log.json.tmp" "$work_dir/log.json"
     
     rm -f "$temp_notes"
-    echo "📝 사용자 메모가 저장되었습니다."
+    msg "MSG_NOTES_SAVED"
 }
 
 # note.md 파일 생성 함수
@@ -204,33 +211,34 @@ execute_backup() {
     local target_file="$2"
     local exclude_options="$3"
     
-    echo "📂 백업을 시작합니다."
-    echo "📌 원본: $source_path"  
-    echo "📌 저장 경로: $target_file"
-    echo "📌 제외 경로: $(get_exclude_paths | wc -l)개"
+    msg "MSG_BACKUP_START"
+    printf "📌 원본: $source_path\n"
+    printf "📌 저장 경로: $target_file\n"
+    local exclude_count=$(get_exclude_paths | wc -l)
+    msg "MSG_BACKUP_EXCLUDE_PATHS" "$exclude_count"
     echo ""
     
     # tar 명령어 구성
     local tar_command="sudo tar cf - -P --one-file-system --acls --xattrs $exclude_options $source_path | pv | gzip > $target_file"
     
-    echo "🚀 압축 백업 시작..."
-    echo "   명령어: $tar_command"
+    msg "MSG_BACKUP_CREATING_ARCHIVE"
+    printf "   명령어: $tar_command\n"
     echo ""
     
     # 백업 실행
     if eval "$tar_command"; then
         echo ""
-        echo "✅ 백업이 성공적으로 완료되었습니다!"
+        success_msg "MSG_BACKUP_COMPLETE"
         
         # 생성된 파일 크기 확인
         local file_size
         file_size=$(get_file_size "$target_file")
-        echo "📦 백업 파일 크기: $(convert_size "$file_size")"
+        printf "📦 백업 파일 크기: $(convert_size "$file_size")\n"
         
         return 0
     else
         echo ""
-        echo "❌ 백업 중 오류가 발생했습니다!"
+        error_msg "MSG_BACKUP_FAILED" "백업 실행 오류"
         return 1
     fi
 }

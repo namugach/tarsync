@@ -12,6 +12,13 @@ source "$PROJECT_ROOT/src/utils/colors.sh"
 # 버전 관리 유틸리티 로드
 source "$PROJECT_ROOT/src/utils/version.sh"
 
+# 언어 감지 및 메시지 시스템 로드
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+
+# 메시지 시스템 초기화
+load_tarsync_messages
+
 # 모듈 경로들
 BACKUP_MODULE="$PROJECT_ROOT/src/modules/backup.sh"
 RESTORE_MODULE="$PROJECT_ROOT/src/modules/restore.sh"
@@ -23,14 +30,17 @@ PROGRAM_NAME="tarsync"
 # sudo 권한 체크 함수
 check_sudo_privileges() {
     if [ "$EUID" -ne 0 ]; then
-        echo -e "${RED}❌ 시스템 백업/복구를 위해서는 sudo 권한이 필요합니다${NC}" >&2
-        echo -e "${YELLOW}💡 다음과 같이 실행해주세요: ${WHITE}sudo $PROGRAM_NAME $*${NC}" >&2
-        echo ""
-        echo -e "${CYAN}📖 권한이 필요한 이유:${NC}"
-        echo "  • 시스템 파일 읽기 권한 (/etc, /var, /root 등)"
-        echo "  • 백업 파일 생성 권한"
-        echo "  • 복구 시 원본 권한 복원"
-        echo ""
+        error_msg "MSG_ERROR_SUDO_REQUIRED" >&2
+        printf "${YELLOW}" >&2
+        msg "MSG_ERROR_SUDO_HINT" "${WHITE}" "$PROGRAM_NAME" "$*" "${NC}" >&2
+        echo "" >&2
+        printf "${CYAN}" >&2
+        msg "MSG_ERROR_SUDO_REASON" >&2
+        printf "${NC}" >&2
+        msg "MSG_ERROR_SUDO_REASON_FILES" >&2
+        msg "MSG_ERROR_SUDO_REASON_BACKUP" >&2
+        msg "MSG_ERROR_SUDO_REASON_RESTORE" >&2
+        echo "" >&2
         exit 1
     fi
 }
@@ -54,50 +64,81 @@ requires_sudo() {
 # 도움말 표시
 show_help() {
     local version=$(get_version)
-    echo -e "${CYAN}$PROGRAM_NAME v$version${NC}"
-    echo -e "${WHITE}Shell Script로 재작성된 안정적인 백업 및 복구 도구${NC}"
+    printf "${CYAN}"
+    msg "MSG_VERSION_HEADER" "$PROGRAM_NAME" "$version"
+    printf "${NC}\n"
+    printf "${WHITE}"
+    msg "MSG_HELP_DESCRIPTION"
+    printf "${NC}\n"
     echo ""
-    echo -e "${YELLOW}사용법:${NC}"
-    echo "  $PROGRAM_NAME <명령어> [인수]"
+    printf "${YELLOW}"
+    msg "MSG_HELP_USAGE"
+    printf "${NC}\n"
     echo ""
-    echo -e "${YELLOW}주요 명령어:${NC}"
-    echo -e "  ${GREEN}backup [경로]${NC}      # 특정 경로 또는 전체 시스템을 백업합니다. (기본값: /)"
-    echo -e "  ${GREEN}restore [백업명] [대상]${NC} # 선택한 백업을 지정한 경로로 복구합니다."
-    echo -e "  ${GREEN}list${NC}              # 생성된 백업 목록을 최신순으로 표시합니다."
-    echo -e "  ${GREEN}log <번호|백업명>${NC}   # 백업의 메모와 로그를 표시합니다."
-    echo -e "  ${GREEN}delete <백업명>${NC}    # 지정한 백업을 영구적으로 삭제합니다."
-    echo -e "  ${GREEN}details <백업명>${NC}   # 백업의 상세 정보를 표시합니다."
+    printf "${YELLOW}"
+    msg "MSG_HELP_COMMANDS"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_BACKUP"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_RESTORE"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_LIST"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_LOG"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_DELETE"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_DETAILS"
+    printf "${NC}\n"
     echo ""
-    echo -e "${YELLOW}기타 명령어:${NC}"
-    echo -e "  ${GREEN}version${NC}           # 프로그램 버전 정보를 표시합니다."
-    echo -e "  ${GREEN}help${NC}              # 이 도움말을 표시합니다."
+    printf "${YELLOW}"
+    msg "MSG_HELP_OTHER_COMMANDS"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_VERSION"
+    printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_HELP"
+    printf "${NC}\n"
     echo ""
-    echo -e "${YELLOW}사용 예시:${NC}"
-    echo "  sudo $PROGRAM_NAME backup /home/user    # /home/user 디렉토리 백업"
-    echo "  sudo $PROGRAM_NAME restore              # 대화형 모드로 복구 시작"
-    echo "  sudo $PROGRAM_NAME restore 1 /tmp/res   # 1번 백업을 /tmp/res에 복구"
-    echo "  $PROGRAM_NAME list                      # 백업 목록 보기"
-    echo "  $PROGRAM_NAME log 7                     # 7번 백업의 메모와 로그 보기"
-    echo "  sudo $PROGRAM_NAME delete backup_name   # 특정 백업 삭제"
+    printf "${YELLOW}"
+    msg "MSG_HELP_EXAMPLES"
+    printf "${NC}\n"
+    msg "MSG_HELP_EXAMPLE_BACKUP" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_RESTORE" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_RESTORE_TARGET" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_LIST" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_LOG" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_DELETE" "$PROGRAM_NAME"
 }
 
 # 버전 정보 표시
 show_version() {
     local version=$(get_version)
-    echo -e "${CYAN}$PROGRAM_NAME v$version${NC}"
-    echo -e "${WHITE}Shell Script 기반 백업 도구${NC}"
+    printf "${CYAN}"
+    msg "MSG_VERSION_HEADER" "$PROGRAM_NAME" "$version"
+    printf "${NC}\n"
+    printf "${WHITE}"
+    msg "MSG_VERSION_DESCRIPTION"
+    printf "${NC}\n"
     echo ""
-    echo "📦 기능:"
-    echo "  • tar+gzip 압축 백업"
-    echo "  • rsync 기반 복구"
-    echo "  • 페이지네이션 목록 관리"
-    echo "  • 백업 무결성 검사"
-    echo "  • 로그 관리"
+    msg "MSG_VERSION_FEATURES"
+    msg "MSG_VERSION_FEATURE_BACKUP"
+    msg "MSG_VERSION_FEATURE_RESTORE"
+    msg "MSG_VERSION_FEATURE_LIST"
+    msg "MSG_VERSION_FEATURE_INTEGRITY"
+    msg "MSG_VERSION_FEATURE_LOG"
     echo ""
-    echo "🛠️  의존성:"
-    echo "  • tar, gzip, rsync, pv, bc, jq"
+    msg "MSG_VERSION_DEPENDENCIES"
+    msg "MSG_VERSION_DEPS_LIST"
     echo ""
-    echo "Copyright (c) $(date +%Y)"
+    msg "MSG_VERSION_COPYRIGHT" "$(date +%Y)"
     echo "MIT License"
 }
 
@@ -109,13 +150,13 @@ check_module() {
     local module_name="$2"
     
     if [[ ! -f "$module_path" ]]; then
-        echo -e "${RED}❌ $module_name 모듈을 찾을 수 없습니다: $module_path${NC}" >&2
+        error_msg "MSG_SYSTEM_FILE_NOT_FOUND" "$module_path" >&2
         return 1
     fi
     
     if [[ ! -x "$module_path" ]]; then
         chmod +x "$module_path" 2>/dev/null || {
-            echo -e "${RED}❌ $module_name 모듈에 실행 권한을 설정할 수 없습니다: $module_path${NC}" >&2
+            error_msg "MSG_SYSTEM_PERMISSION_DENIED" "$module_path" >&2
             return 1
         }
     fi
@@ -127,9 +168,11 @@ check_module() {
 cmd_backup() {
     local backup_path="${1:-/}"
     
-    echo -e "${BLUE}🔄 백업 시작: $backup_path${NC}"
+    printf "${BLUE}"
+    msg "MSG_BACKUP_START"
+    printf "${NC}\n"
     
-    if ! check_module "$BACKUP_MODULE" "백업"; then
+    if ! check_module "$BACKUP_MODULE" "backup"; then
         exit 1
     fi
     
@@ -141,9 +184,11 @@ cmd_restore() {
     local backup_name="$1"
     local target_path="$2"
     
-    echo -e "${BLUE}🔄 복구 절차를 시작합니다.${NC}"
+    printf "${BLUE}"
+    msg "MSG_RESTORE_PREPARING"
+    printf "${NC}\n"
     
-    if ! check_module "$RESTORE_MODULE" "복구"; then
+    if ! check_module "$RESTORE_MODULE" "restore"; then
         exit 1
     fi
     
@@ -156,7 +201,7 @@ cmd_list() {
     local page_num="${2:-1}"
     local select_list="${3:-0}"
     
-    if ! check_module "$LIST_MODULE" "목록"; then
+    if ! check_module "$LIST_MODULE" "list"; then
         exit 1
     fi
     
@@ -168,12 +213,14 @@ cmd_log() {
     local backup_identifier="$1"
     
     if [[ -z "$backup_identifier" ]]; then
-        echo -e "${RED}❌ 백업 번호 또는 이름을 지정해주세요.${NC}" >&2
-        echo "   사용법: $PROGRAM_NAME log <번호|백업이름>"
+        error_msg "MSG_ERROR_MISSING_ARGUMENT" "log <number|backup_name>" >&2
+        printf "   "
+        msg "MSG_HELP_USAGE" >&2
+        printf ": $PROGRAM_NAME log <number|backup_name>\n" >&2
         exit 1
     fi
     
-    if ! check_module "$LIST_MODULE" "목록"; then
+    if ! check_module "$LIST_MODULE" "list"; then
         exit 1
     fi
     
@@ -185,12 +232,14 @@ cmd_delete() {
     local backup_name="$1"
     
     if [[ -z "$backup_name" ]]; then
-        echo -e "${RED}❌ 삭제할 백업 이름을 지정해주세요.${NC}" >&2
-        echo "   사용법: $PROGRAM_NAME delete <백업이름>"
+        error_msg "MSG_ERROR_MISSING_ARGUMENT" "delete <backup_name>" >&2
+        printf "   "
+        msg "MSG_HELP_USAGE" >&2
+        printf ": $PROGRAM_NAME delete <backup_name>\n" >&2
         exit 1
     fi
     
-    if ! check_module "$LIST_MODULE" "목록"; then
+    if ! check_module "$LIST_MODULE" "list"; then
         exit 1
     fi
     
@@ -202,12 +251,14 @@ cmd_details() {
     local backup_name="$1"
     
     if [[ -z "$backup_name" ]]; then
-        echo -e "${RED}❌ 조회할 백업 이름을 지정해주세요.${NC}" >&2
-        echo "   사용법: $PROGRAM_NAME details <백업이름>"
+        error_msg "MSG_ERROR_MISSING_ARGUMENT" "details <backup_name>" >&2
+        printf "   "
+        msg "MSG_HELP_USAGE" >&2
+        printf ": $PROGRAM_NAME details <backup_name>\n" >&2
         exit 1
     fi
     
-    if ! check_module "$LIST_MODULE" "목록"; then
+    if ! check_module "$LIST_MODULE" "list"; then
         exit 1
     fi
     
@@ -248,12 +299,16 @@ main() {
             show_help
             ;;
         *)
-            echo -e "${RED}❌ 알 수 없는 명령어: $command${NC}" >&2
+            error_msg "MSG_ERROR_INVALID_COMMAND" "$command" >&2
             echo ""
-            echo -e "${YELLOW}사용 가능한 명령어:${NC}"
+            printf "${YELLOW}"
+            msg "MSG_HELP_COMMANDS"
+            printf "${NC}\n"
             echo "  backup, restore, list, log, delete, details, version, help"
             echo ""
-            echo -e "${CYAN}도움말 보기: $PROGRAM_NAME help${NC}"
+            printf "${CYAN}"
+            printf "Help: $PROGRAM_NAME help"
+            printf "${NC}\n"
             exit 1
             ;;
     esac
