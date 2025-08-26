@@ -10,13 +10,20 @@ get_script_dir() {
 # 공통 유틸리티 로드
 source "$(get_script_dir)/common.sh"
 
+# 메시지 시스템 로드
+SCRIPT_DIR="$(get_script_dir)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
 # 백업 디렉토리 존재 확인
 check_store_dir() {
     local store_dir
     store_dir=$(get_store_dir_path)
     
     if ! is_path_exists "$store_dir"; then
-        echo "⚠️  백업 디렉토리가 존재하지 않습니다: $store_dir" >&2
+        error_msg "MSG_SYSTEM_FILE_NOT_FOUND" "$store_dir" >&2
         return 1
     fi
     return 0

@@ -10,6 +10,13 @@ get_script_dir() {
 # format.sh 로드
 source "$(get_script_dir)/format.sh"
 
+# 메시지 시스템 로드
+SCRIPT_DIR="$(get_script_dir)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
 # 주어진 명령어가 시스템에 설치되어 있는지 확인
 # 설치되어 있지 않으면 오류 메시지 출력 후 종료
 ensure_command_exists() {
@@ -17,8 +24,8 @@ ensure_command_exists() {
     local install_command="$2"
     
     if ! command -v "$command" >/dev/null 2>&1; then
-        echo "❌ '$command'가 설치되어 있지 않습니다."
-        echo "   다음 명령어로 설치하세요: $install_command"
+        error_msg "MSG_ERROR_MISSING_ARGUMENT" "$command"
+        printf "   다음 명령어로 설치하세요: $install_command\n"
         exit 1
     fi
 }
@@ -114,9 +121,9 @@ check_disk_space() {
     available_bytes=$(get_available_space "$path")
     
     if (( available_bytes < required_bytes )); then
-        echo "❌ 저장 공간이 부족합니다."
-        echo "   필요한 공간: $(convert_size "$required_bytes")"
-        echo "   사용 가능한 공간: $(convert_size "$available_bytes")"
+        error_msg "MSG_BACKUP_FAILED" "저장 공간 부족"
+        printf "   필요한 공간: $(convert_size "$required_bytes")\n"
+        printf "   사용 가능한 공간: $(convert_size "$available_bytes")\n"
         return 1
     fi
     

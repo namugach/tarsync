@@ -10,6 +10,11 @@ source "$PROJECT_ROOT/src/utils/colors.sh"
 source "$PROJECT_ROOT/src/utils/log.sh"
 source "$PROJECT_ROOT/src/utils/version.sh"
 
+# 메시지 시스템 로드
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
 # 설치 디렉토리
 # Installation directories
 PROJECT_DIR="/usr/share/tarsync"

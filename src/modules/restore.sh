@@ -9,12 +9,19 @@ get_script_dir() {
 # 공통 유틸리티 로드
 source "$(get_script_dir)/common.sh"
 
+# 메시지 시스템 로드
+SCRIPT_DIR="$(get_script_dir)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
 # 백업 목록 출력 (선택용) - list.sh와 동일한 형식
 show_backup_list() {
     local store_dir
     store_dir=$(get_store_dir_path)
     
-    echo "📋 사용 가능한 백업 목록:" >&2
+    msg "MSG_RESTORE_SELECT" >&2
     echo "====================" >&2
     
     # list.sh와 동일한 로직 사용
@@ -22,7 +29,7 @@ show_backup_list() {
     files_raw=$(ls -ltr "$store_dir" 2>/dev/null | tail -n +2 | awk '{if ($9 != "") print $6, $7, $8, $9}' | grep -E "^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]+2[0-9]{3}_")
     
     if [[ -z "$files_raw" ]]; then
-        echo "  백업 디렉토리가 없습니다." >&2
+        msg "MSG_LIST_NO_BACKUPS" >&2
         echo "====================" >&2
         return
     fi
@@ -725,7 +732,7 @@ restore() {
     echo "✅ 정리 완료."
     echo ""
 
-    echo "🎉 복구가 성공적으로 완료되었습니다!"
+    success_msg "MSG_RESTORE_COMPLETE"
     echo "   - 복구된 위치: $target_path"
 }
 
