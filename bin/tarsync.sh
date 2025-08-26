@@ -12,6 +12,9 @@ source "$PROJECT_ROOT/src/utils/colors.sh"
 # 버전 관리 유틸리티 로드
 source "$PROJECT_ROOT/src/utils/version.sh"
 
+# 사용자 설정 유틸리티 로드
+source "$PROJECT_ROOT/src/utils/settings.sh"
+
 # 언어 감지 및 메시지 시스템 로드
 source "$PROJECT_ROOT/config/messages/detect.sh"
 source "$PROJECT_ROOT/config/messages/load.sh"
@@ -52,7 +55,7 @@ requires_sudo() {
         "backup"|"b"|"restore"|"r"|"delete"|"rm"|"d")
             return 0  # sudo 필요 (쓰기/수정 작업)
             ;;
-        "list"|"ls"|"l"|"log"|"details"|"show"|"info"|"i"|"version"|"v"|"-v"|"--version"|"help"|"h"|"-h"|"--help")
+        "list"|"ls"|"l"|"log"|"details"|"show"|"info"|"i"|"config"|"cfg"|"version"|"v"|"-v"|"--version"|"help"|"h"|"-h"|"--help")
             return 1  # sudo 불필요 (읽기 전용 작업)
             ;;
         *)
@@ -96,6 +99,9 @@ show_help() {
     printf "  ${GREEN}"
     msg "MSG_HELP_DETAILS"
     printf "${NC}\n"
+    printf "  ${GREEN}"
+    msg "MSG_HELP_CONFIG"
+    printf "${NC}\n"
     echo ""
     printf "${YELLOW}"
     msg "MSG_HELP_OTHER_COMMANDS"
@@ -116,6 +122,7 @@ show_help() {
     msg "MSG_HELP_EXAMPLE_LIST" "$PROGRAM_NAME"
     msg "MSG_HELP_EXAMPLE_LOG" "$PROGRAM_NAME"
     msg "MSG_HELP_EXAMPLE_DELETE" "$PROGRAM_NAME"
+    msg "MSG_HELP_EXAMPLE_CONFIG" "$PROGRAM_NAME"
 }
 
 # 버전 정보 표시
@@ -265,6 +272,46 @@ cmd_details() {
     bash "$LIST_MODULE" details "$backup_name"
 }
 
+# 설정 명령어 처리
+cmd_config() {
+    local subcommand="$1"
+    
+    case "$subcommand" in
+        "lang"|"language")
+            local action="$2"
+            case "$action" in
+                "show"|"")
+                    show_current_language
+                    ;;
+                "en"|"ko")
+                    if set_user_language_setting "$action"; then
+                        printf "\n"
+                        msg "MSG_CONFIG_RESTART_HINT" "$PROGRAM_NAME"
+                    fi
+                    ;;
+                *)
+                    error_msg "MSG_ERROR_INVALID_COMMAND" "config lang $action" >&2
+                    echo "" >&2
+                    printf "Usage: $PROGRAM_NAME config lang [en|ko|show]\n" >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+        "reset")
+            reset_user_settings
+            ;;
+        "help"|"")
+            show_settings_help
+            ;;
+        *)
+            error_msg "MSG_ERROR_INVALID_COMMAND" "config $subcommand" >&2
+            echo "" >&2
+            printf "Usage: $PROGRAM_NAME config [lang|reset|help]\n" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # 메인 함수
 main() {
     local command="${1:-help}"
@@ -292,6 +339,9 @@ main() {
         "details"|"show"|"info"|"i")
             cmd_details "${@:2}"
             ;;
+        "config"|"cfg")
+            cmd_config "${@:2}"
+            ;;
         "version"|"v"|"-v"|"--version")
             show_version
             ;;
@@ -304,7 +354,7 @@ main() {
             printf "${YELLOW}"
             msg "MSG_HELP_COMMANDS"
             printf "${NC}\n"
-            echo "  backup, restore, list, log, delete, details, version, help"
+            echo "  backup, restore, list, log, delete, details, config, version, help"
             echo ""
             printf "${CYAN}"
             printf "Help: $PROGRAM_NAME help"

@@ -25,7 +25,12 @@ create_basic_json_log() {
     local exclude_count=$(get_exclude_paths | wc -l)
     local timestamp=$(date -Iseconds)
     
-    # JSON 구조 생성
+    # 다국어 메시지 준비
+    local backup_start_msg
+    backup_start_msg=$(msg "MSG_BACKUP_START")
+    local created_by_msg="tarsync shell script (${CURRENT_LANGUAGE:-ko})"
+    
+    # JSON 구조 생성 (다국어 지원)
     jq -n \
         --arg timestamp "$timestamp" \
         --arg date "$(date '+%Y-%m-%d')" \
@@ -33,7 +38,9 @@ create_basic_json_log() {
         --arg source "$BACKUP_DISK" \
         --arg destination "$work_dir" \
         --arg status "$status" \
-        --arg created_by "tarsync shell script" \
+        --arg created_by "$created_by_msg" \
+        --arg language "${CURRENT_LANGUAGE:-ko}" \
+        --arg backup_start_msg "$backup_start_msg" \
         --argjson exclude_count "$exclude_count" \
         --argjson exclude_paths "$(get_exclude_paths | jq -R -s -c 'split("\n")[:-1]')" \
         --argjson user_notes "$has_notes" \
@@ -45,7 +52,8 @@ create_basic_json_log() {
                 source: $source,
                 destination: $destination,
                 status: $status,
-                created_by: $created_by
+                created_by: $created_by,
+                language: $language
             },
             details: {
                 exclude_paths_count: $exclude_count,
@@ -56,7 +64,7 @@ create_basic_json_log() {
             log_entries: [
                 {
                     timestamp: $timestamp,
-                    message: "백업 시작"
+                    message: $backup_start_msg
                 }
             ],
             user_notes: $user_notes
@@ -159,9 +167,9 @@ update_json_log_completion() {
     local completion_message
     
     if [[ "$status" == "completed" ]]; then
-        completion_message="백업 완료"
+        completion_message=$(msg "MSG_BACKUP_COMPLETE")
     else
-        completion_message="백업 실패"
+        completion_message=$(msg "MSG_BACKUP_FAILED" "")
     fi
     
     # JSON 업데이트

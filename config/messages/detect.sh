@@ -51,7 +51,7 @@ check_settings_language() {
     # Check user settings first
     # 사용자 설정 먼저 확인
     if [ -f "$settings_file" ]; then
-        local lang_setting=$(grep "^TARSYNC_LANG=" "$settings_file" 2>/dev/null | cut -d'=' -f2 | tr -d '"'"'"' | tr -d '"')
+        local lang_setting=$(grep "^TARSYNC_LANG=" "$settings_file" 2>/dev/null | cut -d'=' -f2 | tr -d "\"'")
         if [ -n "$lang_setting" ]; then
             echo "$lang_setting"
             return
@@ -61,7 +61,7 @@ check_settings_language() {
     # Check system settings
     # 시스템 설정 확인
     if [ -f "$system_settings" ]; then
-        local lang_setting=$(grep "^TARSYNC_LANG=" "$system_settings" 2>/dev/null | cut -d'=' -f2 | tr -d '"'"'"' | tr -d '"')
+        local lang_setting=$(grep "^TARSYNC_LANG=" "$system_settings" 2>/dev/null | cut -d'=' -f2 | tr -d "\"'")
         if [ -n "$lang_setting" ]; then
             echo "$lang_setting"
             return

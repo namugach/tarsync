@@ -221,3 +221,11 @@ MSG_FAILED="Failed"
 MSG_WARNING="Warning"
 MSG_ERROR="Error"
 MSG_INFO="Info"
+
+# ======================
+# Configuration Messages
+# ======================
+
+MSG_HELP_CONFIG="config [lang|reset|help]    Manage user settings"
+MSG_HELP_EXAMPLE_CONFIG="  %s config lang en       # Set language to English"
+MSG_CONFIG_RESTART_HINT="💡 Changes will take effect in new %s sessions"

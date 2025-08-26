@@ -163,7 +163,8 @@ show_backup_log() {
         return 1
     fi
     
-    echo "📋 $backup_name 메모 및 로그 목록 조회 중..."
+    printf "📋 "
+    msg "MSG_LOG_HEADER" "$backup_name"
     echo ""
     
     local note_file="$backup_dir/note.md"
@@ -176,13 +177,54 @@ show_backup_log() {
         echo ""
     fi
     
-    # 로그 파일 표시 (항상 표시)
-    echo "=== log ==="
+    # 로그 파일 표시 (사용자 친화적 포맷)
+    printf "=== "
+    msg "MSG_LOG_DETAILS_HEADER"
+    printf " ===\n"
     if [[ -f "$log_file" ]]; then
-        cat "$log_file"
+        display_formatted_log "$log_file"
     else
-        echo "⚠️  로그 파일이 없습니다: $backup_name"
+        msg "MSG_LOG_NO_LOG_FILE"
     fi
+}
+
+# JSON 로그를 사용자 친화적으로 포맷팅해서 표시
+display_formatted_log() {
+    local log_file="$1"
+    
+    if [[ ! -f "$log_file" ]] || ! command -v jq >/dev/null 2>&1; then
+        # jq가 없거나 파일이 없으면 원본 출력
+        cat "$log_file" 2>/dev/null || msg "MSG_LOG_NO_LOG_FILE"
+        return
+    fi
+    
+    # JSON에서 주요 정보 추출
+    local backup_date=$(jq -r '.backup.date // "N/A"' "$log_file" 2>/dev/null)
+    local backup_time=$(jq -r '.backup.time // "N/A"' "$log_file" 2>/dev/null)
+    local backup_status=$(jq -r '.backup.status // "N/A"' "$log_file" 2>/dev/null)
+    local backup_source=$(jq -r '.backup.source // "N/A"' "$log_file" 2>/dev/null)
+    local file_size=$(jq -r '.details.file_size // "N/A"' "$log_file" 2>/dev/null)
+    local duration=$(jq -r '.details.duration_seconds // 0' "$log_file" 2>/dev/null)
+    local language=$(jq -r '.backup.language // "ko"' "$log_file" 2>/dev/null)
+    
+    # 다국어 메시지로 포맷팅해서 표시
+    msg "MSG_DETAILS_DATE" "$backup_date $backup_time"
+    msg "MSG_DETAILS_SOURCE" "$backup_source"
+    msg "MSG_DETAILS_STATUS" "$backup_status"
+    
+    if [[ "$file_size" != "N/A" && "$file_size" != "" ]]; then
+        msg "MSG_DETAILS_SIZE" "$file_size"
+    fi
+    
+    if [[ "$duration" != "0" && "$duration" != "N/A" ]]; then
+        local duration_formatted=$(printf "%d seconds" "$duration")
+        msg "MSG_DETAILS_DURATION" "$duration_formatted"
+    fi
+    
+    # 로그 엔트리들 표시
+    echo ""
+    msg "MSG_LOG_DETAILS_HEADER"
+    jq -r '.log_entries[]? | "  " + .timestamp + ": " + .message' "$log_file" 2>/dev/null || echo ""
 }
 
 # 백업 상태 체크 (파일 완전성) - 최적화 버전

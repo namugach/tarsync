@@ -221,3 +221,11 @@ MSG_FAILED="실패"
 MSG_WARNING="경고"
 MSG_ERROR="오류"
 MSG_INFO="정보"
+
+# ======================
+# 설정 메시지
+# ======================
+
+MSG_HELP_CONFIG="config [lang|reset|help]    사용자 설정 관리"
+MSG_HELP_EXAMPLE_CONFIG="  %s config lang ko       # 언어를 한국어로 설정"
+MSG_CONFIG_RESTART_HINT="💡 새로운 %s 세션에서 변경사항이 적용됩니다"
