@@ -415,10 +415,11 @@ copy_project_files() {
     cp -r "$PROJECT_ROOT/src/"* "$PROJECT_DIR/src/"
     cp -r "$PROJECT_ROOT/config/"* "$PROJECT_DIR/config/"
     
-    # 설정 파일 생성 (백업 디렉토리 반영)
+    # 설정 파일 생성 (언어 선택 및 백업 디렉토리 반영)
     cat > "$PROJECT_DIR/config/settings.env" << EOF
 # tarsync 기본 설정
-LANGUAGE=ko
+TARSYNC_LANG=${TARSYNC_LANG:-ko}
+LANGUAGE=${TARSYNC_LANG:-ko}
 BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup/tarsync}
 LOG_LEVEL=info
 EOF
@@ -455,6 +456,139 @@ configure_zsh_completion() {
 update_path() {
     # 전역 설치에서는 /usr/local/bin이 이미 PATH에 포함되어 있어서 별도 설정 불필요
     log_info "실행파일이 /usr/local/bin에 설치되어 PATH 업데이트가 필요하지 않습니다"
+}
+
+# ===== 언어 선택 함수 =====
+# ===== Language Selection Functions =====
+
+# 언어 파일에서 코드와 이름 추출
+process_language_file() {
+    local lang_file="$1"
+    local code=""
+    local name=""
+    
+    if [ -f "$lang_file" ]; then
+        # 언어 코드 추출 (LANG_CODE 변수에서)
+        code=$(grep "^LANG_CODE=" "$lang_file" 2>/dev/null | cut -d'=' -f2 | tr -d "\"'")
+        # 언어 이름 추출 (LANG_NAME 변수에서)
+        name=$(grep "^LANG_NAME=" "$lang_file" 2>/dev/null | cut -d'=' -f2 | tr -d "\"'")
+        
+        if [ -n "$code" ] && [ -n "$name" ]; then
+            langs+=("$code")
+            lang_names+=("$name")
+            
+            if [ "$code" = "ko" ]; then  # tarsync 기본값은 한국어
+                default_idx=$i
+            fi
+            
+            i=$((i+1))
+        fi
+    fi
+}
+
+# 사용 가능한 언어 찾기
+find_available_languages() {
+    langs=()
+    lang_names=()
+    default_idx=0
+    i=0
+    
+    log_info "사용 가능한 언어를 찾는 중..."
+    
+    # 언어 메시지 파일들 검사
+    for lang_file in "$PROJECT_ROOT/config/messages"/*.sh; do
+        if [[ "$(basename "$lang_file")" != "detect.sh" && "$(basename "$lang_file")" != "load.sh" ]]; then
+            process_language_file "$lang_file"
+        fi
+    done
+    
+    # 언어가 없으면 기본값 추가
+    if [ ${#langs[@]} -eq 0 ]; then
+        langs=("en" "ko")
+        lang_names=("English" "한국어")
+        default_idx=1  # 한국어가 기본값
+    fi
+}
+
+# 언어 옵션 표시
+display_language_options() {
+    echo ""
+    log_info "📍 설치 언어를 선택하세요"
+    echo "   0. 설치 취소"
+    
+    for i in "${!langs[@]}"; do
+        local default_mark=""
+        if [ $i -eq $default_idx ]; then
+            default_mark=" (기본값)"
+        fi
+        echo "   $((i+1)). ${lang_names[$i]}${default_mark}"
+    done
+}
+
+# 언어 선택 입력 처리
+handle_language_selection() {
+    echo ""
+    echo -n "언어를 선택하세요 (0-${#langs[@]}): "
+    read -r lang_choice
+    
+    if [ "$lang_choice" = "0" ]; then
+        log_info "설치가 취소되었습니다"
+        exit 0
+    fi
+    
+    process_language_choice
+}
+
+# 선택된 언어 처리
+process_language_choice() {
+    if [[ "$lang_choice" =~ ^[0-9]+$ ]] && [ "$lang_choice" -ge 1 ] && [ "$lang_choice" -le "${#langs[@]}" ]; then
+        set_selected_language
+    else
+        set_default_language
+    fi
+    
+    prepare_language_settings
+}
+
+# 선택된 언어 설정
+set_selected_language() {
+    local idx=$((lang_choice-1))
+    selected_lang="${langs[$idx]}"
+    selected_name="${lang_names[$idx]}"
+    
+    TARSYNC_LANG="$selected_lang"
+    export TARSYNC_LANG
+    
+    log_info "✓ 선택된 언어: $selected_name ($selected_lang)"
+}
+
+# 기본 언어 설정
+set_default_language() {
+    local default_lang="${langs[$default_idx]}"
+    local default_name="${lang_names[$default_idx]}"
+    
+    selected_lang="$default_lang"
+    selected_name="$default_name"
+    
+    TARSYNC_LANG="$default_lang"
+    export TARSYNC_LANG
+    
+    log_info "⚠️  잘못된 입력입니다. 기본 언어로 설정됩니다: $default_name ($default_lang)"
+}
+
+# 언어 설정 준비
+prepare_language_settings() {
+    # 선택된 언어로 메시지 시스템 다시 로드
+    load_tarsync_messages
+    
+    log_info "📝 언어 설정이 완료되었습니다"
+}
+
+# 메인 언어 선택 함수
+setup_language() {
+    find_available_languages
+    display_language_options  
+    handle_language_selection
 }
 
 # ===== 검증 함수 =====
@@ -676,6 +810,9 @@ main() {
     log_info "필수 의존성 확인 중..."
     check_required_tools
     log_info "모든 의존성이 충족되었습니다"
+    
+    # 언어 선택
+    setup_language
     
     # 최종 확인
     confirm_installation
