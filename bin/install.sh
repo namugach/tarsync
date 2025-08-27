@@ -252,14 +252,14 @@ install_tarsync_script() {
     update_script_paths
     
     if check_file_exists "$INSTALL_DIR/tarsync" && [ -x "$INSTALL_DIR/tarsync" ]; then
-        log_info "tarsync 스크립트가 설치되었습니다: $INSTALL_DIR/tarsync"
+        log_info "$(msg MSG_INSTALL_SCRIPT_INSTALLED "$INSTALL_DIR/tarsync")"
     else
         log_error "tarsync 스크립트 설치에 실패했습니다"
         return 1
     fi
     
     if check_file_exists "$PROJECT_DIR/VERSION"; then
-        log_info "VERSION 파일이 설치되었습니다: $PROJECT_DIR/VERSION"
+        log_info "$(msg MSG_INSTALL_VERSION_INSTALLED "$PROJECT_DIR/VERSION")"
     else
         log_error "VERSION 파일 설치에 실패했습니다"
         return 1
@@ -276,13 +276,13 @@ configure_backup_directory() {
     fi
     
     echo ""
-    log_info "📁 백업 저장 위치를 설정합니다"
+    log_info "$(msg MSG_INSTALL_BACKUP_SETUP)"
     echo ""
-    echo "   백업 파일들이 저장될 디렉토리를 입력하세요:"
-    echo "   • 기본값: $default_backup_path"
-    echo "   • 예시: ~/backup/tarsync, /data/backup/tarsync, /var/backup/tarsync"
+    msg MSG_INSTALL_BACKUP_PROMPT
+    msg MSG_INSTALL_BACKUP_DEFAULT "$default_backup_path"
+    msg MSG_INSTALL_BACKUP_EXAMPLES
     echo ""
-    echo -n "   백업 디렉토리 [$default_backup_path]: "
+    printf "$(msg MSG_INSTALL_BACKUP_INPUT "$default_backup_path")"
     read -r backup_dir
     backup_dir=${backup_dir:-$default_backup_path}
     
@@ -294,7 +294,7 @@ configure_backup_directory() {
     fi
     
     echo ""
-    log_info "선택된 백업 디렉토리: $backup_dir"
+    log_info "$(msg MSG_INSTALL_BACKUP_SELECTED "$backup_dir")"
     
     # 디렉토리 생성 시도
     if [[ ! -d "$backup_dir" ]]; then
@@ -405,7 +405,7 @@ configure_backup_directory() {
     BACKUP_DIRECTORY="$backup_dir"
     
     echo ""
-    log_info "📦 백업 디렉토리 설정이 완료되었습니다"
+    log_info "$(msg MSG_INSTALL_BACKUP_SETUP_COMPLETE)"
 }
 
 copy_project_files() {
@@ -418,14 +418,14 @@ copy_project_files() {
     # 설정 파일 생성 (언어 선택 및 백업 디렉토리 반영)
     cat > "$PROJECT_DIR/config/settings.env" << EOF
 # tarsync 기본 설정
-TARSYNC_LANG=${TARSYNC_LANG:-ko}
-LANGUAGE=${TARSYNC_LANG:-ko}
+TARSYNC_LANG=${TARSYNC_LANG:-en}
+LANGUAGE=${TARSYNC_LANG:-en}
 BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup/tarsync}
 LOG_LEVEL=info
 EOF
     
-    log_info "프로젝트 파일이 복사되었습니다"
-    log_info "백업 저장 위치: ${BACKUP_DIRECTORY:-/mnt/backup}"
+    log_info "$(msg MSG_INSTALL_FILES_COPIED)"
+    log_info "$(msg MSG_INSTALL_BACKUP_LOCATION "${BACKUP_DIRECTORY:-/mnt/backup}")"
 }
 
 install_completions() {
@@ -440,22 +440,22 @@ install_completions() {
     cp "$PROJECT_ROOT/src/completion/zsh.sh" "$ZSH_COMPLETION_DIR/_tarsync"
     chmod +x "$ZSH_COMPLETION_DIR/_tarsync"
     
-    log_info "자동완성 파일이 설치되었습니다"
+    log_info "$(msg MSG_INSTALL_COMPLETION_INSTALLED)"
 }
 
 configure_bash_completion() {
     # 전역 설치에서는 /etc/bash_completion.d/ 에 설치하면 자동으로 로드됨
-    log_info "Bash 자동완성이 시스템 전역에 설치되었습니다"
+    log_info "$(msg MSG_INSTALL_COMPLETION_BASH_GLOBAL)"
 }
 
 configure_zsh_completion() {
     # 전역 설치에서는 /usr/share/zsh/site-functions/ 에 설치하면 자동으로 로드됨  
-    log_info "ZSH 자동완성이 시스템 전역에 설치되었습니다"
+    log_info "$(msg MSG_INSTALL_COMPLETION_ZSH_GLOBAL)"
 }
 
 update_path() {
     # 전역 설치에서는 /usr/local/bin이 이미 PATH에 포함되어 있어서 별도 설정 불필요
-    log_info "실행파일이 /usr/local/bin에 설치되어 PATH 업데이트가 필요하지 않습니다"
+    log_info "$(msg MSG_INSTALL_PATH_NOT_NEEDED)"
 }
 
 # ===== 언어 선택 함수 =====
@@ -477,7 +477,7 @@ process_language_file() {
             langs+=("$code")
             lang_names+=("$name")
             
-            if [ "$code" = "ko" ]; then  # tarsync 기본값은 한국어
+            if [ "$code" = "en" ]; then  # tarsync 기본값은 영어 (글로벌화)
                 default_idx=$i
             fi
             
@@ -493,7 +493,7 @@ find_available_languages() {
     default_idx=0
     i=0
     
-    log_info "사용 가능한 언어를 찾는 중..."
+    log_info "$(msg MSG_INSTALL_FINDING_LANGUAGES)"
     
     # 언어 메시지 파일들 검사
     for lang_file in "$PROJECT_ROOT/config/messages"/*.sh; do
@@ -506,15 +506,15 @@ find_available_languages() {
     if [ ${#langs[@]} -eq 0 ]; then
         langs=("en" "ko")
         lang_names=("English" "한국어")
-        default_idx=1  # 한국어가 기본값
+        default_idx=0  # 영어가 기본값 (글로벌화)
     fi
 }
 
 # 언어 옵션 표시
 display_language_options() {
     echo ""
-    log_info "📍 설치 언어를 선택하세요"
-    echo "   0. 설치 취소"
+    log_info "$(msg MSG_INSTALL_SELECT_LANGUAGE)"
+    echo "   0. $(msg MSG_INSTALL_CANCEL)"
     
     for i in "${!langs[@]}"; do
         local default_mark=""
@@ -532,7 +532,7 @@ handle_language_selection() {
     read -r lang_choice
     
     if [ "$lang_choice" = "0" ]; then
-        log_info "설치가 취소되었습니다"
+        log_info "$(msg MSG_INSTALL_CANCELLED)"
         exit 0
     fi
     
@@ -559,7 +559,7 @@ set_selected_language() {
     TARSYNC_LANG="$selected_lang"
     export TARSYNC_LANG
     
-    log_info "✓ 선택된 언어: $selected_name ($selected_lang)"
+    log_info "$(msg MSG_INSTALL_LANGUAGE_SELECTED "$selected_name" "$selected_lang")"
 }
 
 # 기본 언어 설정
@@ -573,7 +573,7 @@ set_default_language() {
     TARSYNC_LANG="$default_lang"
     export TARSYNC_LANG
     
-    log_info "⚠️  잘못된 입력입니다. 기본 언어로 설정됩니다: $default_name ($default_lang)"
+    log_info "$(msg MSG_INSTALL_LANGUAGE_INVALID "$default_name" "$default_lang")"
 }
 
 # 언어 설정 준비
@@ -581,7 +581,7 @@ prepare_language_settings() {
     # 선택된 언어로 메시지 시스템 다시 로드
     load_tarsync_messages
     
-    log_info "📝 언어 설정이 완료되었습니다"
+    log_info "$(msg MSG_INSTALL_LANGUAGE_CONFIGURED)"
 }
 
 # 메인 언어 선택 함수
@@ -705,12 +705,12 @@ offer_immediate_completion_setup() {
 
 confirm_installation() {
     echo ""
-    log_info "설치를 계속하시겠습니까? (Y/n)"
+    log_info "$(msg MSG_INSTALL_CONFIRM_PROCEED)"
     read -r confirmation
     confirmation=${confirmation:-Y}  # 기본값을 Y로 설정
     
     if [[ ! $confirmation =~ ^[Yy]$ ]]; then
-        log_info "설치가 취소되었습니다"
+        log_info "$(msg MSG_INSTALL_CANCELLED)"
         exit 0
     fi
 }
@@ -799,17 +799,17 @@ main() {
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
     
-    log_info "설치 초기화 중..."
+    log_info "$(msg MSG_INSTALL_INITIALIZING)"
     check_minimal_requirements
     
-    log_info "기존 설치 확인 중..."
+    log_info "$(msg MSG_INSTALL_CHECKING_EXISTING)"
     if check_dir_exists "$PROJECT_DIR"; then
         log_info "기존 설치 디렉토리 발견: $PROJECT_DIR"
     fi
     
     log_info "필수 의존성 확인 중..."
     check_required_tools
-    log_info "모든 의존성이 충족되었습니다"
+    log_info "$(msg MSG_INSTALL_ALL_DEPS_OK)"
     
     # 언어 선택
     setup_language
@@ -819,7 +819,7 @@ main() {
     
     # 실제 설치 시작
     echo ""
-    log_info "tarsync 설치를 시작합니다..."
+    log_info "$(msg MSG_INSTALL_STARTING)"
     echo ""
     
     # 기존 설치 제거
@@ -829,7 +829,7 @@ main() {
     fi
     
     # 파일 설치
-    log_info "파일 설치 중..."
+    log_info "$(msg MSG_INSTALL_FILES)"
     configure_backup_directory
     copy_project_files || exit 1
     install_tarsync_script || exit 1
@@ -849,7 +849,7 @@ main() {
     update_path
     
     # 설치 확인
-    log_info "설치 확인 중..."
+    log_info "$(msg MSG_INSTALL_VERIFYING)"
     verify_installation
 }
 

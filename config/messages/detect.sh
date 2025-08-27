@@ -13,32 +13,36 @@
 # Function: Detect system language from locale
 # 함수: 시스템 로케일에서 언어 감지
 detect_locale_language() {
-    # Check if running in WSL environment (Korean default)
-    # WSL 환경인지 확인 (한국어 기본값)
-    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
-        echo "ko"
-        return
-    fi
+    # Global-first approach - English is the primary language
+    # 글로벌 우선 접근법 - 영어가 기본 언어
     
-    # 1. Check LC_ALL
+    # 1. Check LC_ALL for Korean locale
     if [[ -n "$LC_ALL" && "$LC_ALL" == ko_* ]]; then
         echo "ko"
         return
     fi
     
-    # 2. Check LC_MESSAGES
+    # 2. Check LC_MESSAGES for Korean locale
     if [[ -n "$LC_MESSAGES" && "$LC_MESSAGES" == ko_* ]]; then
         echo "ko"
         return
     fi
     
-    # 3. Check LANG
+    # 3. Check LANG for Korean locale
     if [[ -n "$LANG" && "$LANG" == ko_* ]]; then
         echo "ko"
         return
     fi
     
-    # 4. Default to English
+    # 4. Check if running in WSL with Korean system
+    # WSL에서 한국어 시스템인지 확인 (더 구체적으로 체크)
+    if [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]] && [[ -n "$LANG" && "$LANG" == ko_* ]]; then
+        echo "ko"
+        return
+    fi
+    
+    # 5. Default to English (Global-first)
+    # 기본값: 영어 (글로벌 우선)
     echo "en"
 }
 

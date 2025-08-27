@@ -197,6 +197,84 @@ MSG_INSTALL_LANGUAGE_SETUP="Setting up language configuration..."
 MSG_INSTALL_LANGUAGE_DETECTION="Detecting system language: %s"
 MSG_INSTALL_LANGUAGE_CONFIG="Configuring language: %s"
 MSG_INSTALL_LANGUAGE_FILES_COPIED="Language files copied successfully"
+MSG_INSTALL_FINDING_LANGUAGES="Finding available languages..."
+MSG_INSTALL_SELECT_LANGUAGE="📍 Please select installation language"
+MSG_INSTALL_CANCEL="Cancel installation"
+MSG_INSTALL_LANGUAGE_SELECTED="✓ Selected language: %s (%s)"
+MSG_INSTALL_LANGUAGE_INVALID="⚠️  Invalid input. Setting to default language: %s (%s)"
+MSG_INSTALL_LANGUAGE_CONFIGURED="📝 Language configuration completed"
+
+# Installation stages
+MSG_INSTALL_INITIALIZING="Initializing installation..."
+MSG_INSTALL_CHECKING_EXISTING="Checking existing installation..."
+MSG_INSTALL_ALL_DEPS_OK="All dependencies are satisfied"
+MSG_INSTALL_CONFIRM_PROCEED="Do you want to continue with installation? (Y/n)"
+MSG_INSTALL_CANCELLED="Installation cancelled"
+MSG_INSTALL_STARTING="Starting tarsync installation..."
+MSG_INSTALL_FILES="Installing files..."
+
+# Backup directory setup
+MSG_INSTALL_BACKUP_SETUP="📁 Setting up backup storage location"
+MSG_INSTALL_BACKUP_PROMPT="Please enter the directory where backup files will be stored:"
+MSG_INSTALL_BACKUP_DEFAULT="• Default: %s"
+MSG_INSTALL_BACKUP_EXAMPLES="• Examples: ~/backup/tarsync, /data/backup/tarsync, /var/backup/tarsync"
+MSG_INSTALL_BACKUP_INPUT="Backup directory [%s]: "
+MSG_INSTALL_BACKUP_SELECTED="Selected backup directory: %s"
+MSG_INSTALL_BACKUP_CREATED="✅ Backup directory created: %s"
+MSG_INSTALL_BACKUP_PERMISSIONS_OK="✅ Backup directory permissions verified"
+MSG_INSTALL_BACKUP_SETUP_COMPLETE="📦 Backup directory setup completed"
+
+# File operations  
+MSG_INSTALL_FILES_COPIED="Program files copied successfully"
+MSG_INSTALL_BACKUP_LOCATION="Backup storage location: %s"
+MSG_INSTALL_SCRIPT_INSTALLED="tarsync script installed: %s"
+MSG_INSTALL_VERSION_INSTALLED="VERSION file installed: %s"
+
+# Completion system
+MSG_INSTALL_COMPLETION_INSTALLING="Installing auto-completion..."
+MSG_INSTALL_COMPLETION_INSTALLED="Auto-completion files installed"
+MSG_INSTALL_COMPLETION_BASH_SETUP="Setting up bash-completion system..."
+MSG_INSTALL_COMPLETION_BASH_INSTALLED="bash-completion package already installed"
+MSG_INSTALL_COMPLETION_BASH_ACTIVE="bash completion already activated"
+MSG_INSTALL_COMPLETION_BASH_COMPLETE="bash-completion system setup completed"
+MSG_INSTALL_COMPLETION_BASH_GLOBAL="Bash auto-completion installed system-wide"
+MSG_INSTALL_COMPLETION_ZSH_GLOBAL="ZSH auto-completion installed system-wide"
+
+# Path setup
+MSG_INSTALL_PATH_UPDATING="Updating PATH..."
+MSG_INSTALL_PATH_NOT_NEEDED="Executable installed in /usr/local/bin, PATH update not required"
+
+# Installation verification
+MSG_INSTALL_VERIFYING="Verifying installation..."
+MSG_INSTALL_SUCCESS_TITLE="🎉 tarsync v%s installation completed!"
+MSG_INSTALL_LOCATIONS="📍 Installation locations:"
+MSG_INSTALL_EXECUTABLE="• Executable: %s"
+MSG_INSTALL_VERSION_FILE="• Version file: %s"
+MSG_INSTALL_LIBRARY="• Library: %s"
+MSG_INSTALL_BASH_COMPLETION="• Bash completion: %s"
+MSG_INSTALL_ZSH_COMPLETION="• ZSH completion: %s"
+
+# Auto-completion setup
+MSG_INSTALL_COMPLETION_IMMEDIATE="🚀 To use auto-completion immediately:"
+MSG_INSTALL_CONTAINER_DETECTED="📦 Container environment detected"
+MSG_INSTALL_BASH_DETECTED="🐚 Bash environment detected"
+MSG_INSTALL_ZSH_DETECTED="🐚 ZSH environment detected"
+MSG_INSTALL_COMPLETION_OPTIONS="Choose one of the following:"
+MSG_INSTALL_COMPLETION_RELOAD_BASHRC="1) source ~/.bashrc              # Reload configuration file"
+MSG_INSTALL_COMPLETION_LOAD_DIRECT="2) source /etc/bash_completion   # Load completion directly"
+MSG_INSTALL_COMPLETION_NEW_SESSION="3) exec bash                     # Start new shell session (recommended)"
+MSG_INSTALL_COMPLETION_RELOAD_ZSHRC="1) source ~/.zshrc               # Reload configuration file"
+MSG_INSTALL_COMPLETION_REINIT_ZSH="2) autoload -U compinit && compinit  # Re-initialize completion"
+MSG_INSTALL_COMPLETION_NEW_ZSH="3) exec zsh                      # Start new shell session (recommended)"
+MSG_INSTALL_COMPLETION_COPY_TIP="💡 Copy and paste the command into your terminal"
+
+# Usage examples
+MSG_INSTALL_USAGE_EXAMPLES="📖 tarsync command usage:"
+MSG_INSTALL_USAGE_HELP="      tarsync help                    # Show help"
+MSG_INSTALL_USAGE_VERSION="      tarsync version                 # Check version"  
+MSG_INSTALL_USAGE_BACKUP="      tarsync backup /home/user       # Backup directory"
+MSG_INSTALL_USAGE_LIST="      tarsync list                    # List backups"
+MSG_INSTALL_COMPLETION_TIP="💡 Press Tab to use auto-completion!"
 
 # Uninstall process
 MSG_UNINSTALL_START="Starting tarsync removal..."

@@ -197,6 +197,84 @@ MSG_INSTALL_LANGUAGE_SETUP="언어 설정을 구성하고 있습니다..."
 MSG_INSTALL_LANGUAGE_DETECTION="시스템 언어를 감지했습니다: %s"
 MSG_INSTALL_LANGUAGE_CONFIG="언어를 설정하고 있습니다: %s"
 MSG_INSTALL_LANGUAGE_FILES_COPIED="언어 파일이 성공적으로 복사되었습니다"
+MSG_INSTALL_FINDING_LANGUAGES="사용 가능한 언어를 찾는 중..."
+MSG_INSTALL_SELECT_LANGUAGE="📍 설치 언어를 선택하세요"
+MSG_INSTALL_CANCEL="설치 취소"
+MSG_INSTALL_LANGUAGE_SELECTED="✓ 선택된 언어: %s (%s)"
+MSG_INSTALL_LANGUAGE_INVALID="⚠️  잘못된 입력입니다. 기본 언어로 설정됩니다: %s (%s)"
+MSG_INSTALL_LANGUAGE_CONFIGURED="📝 언어 설정이 완료되었습니다"
+
+# 설치 단계
+MSG_INSTALL_INITIALIZING="설치 초기화 중..."
+MSG_INSTALL_CHECKING_EXISTING="기존 설치 확인 중..."
+MSG_INSTALL_ALL_DEPS_OK="모든 의존성이 충족되었습니다"
+MSG_INSTALL_CONFIRM_PROCEED="설치를 계속하시겠습니까? (Y/n)"
+MSG_INSTALL_CANCELLED="설치가 취소되었습니다"
+MSG_INSTALL_STARTING="tarsync 설치를 시작합니다..."
+MSG_INSTALL_FILES="파일 설치 중..."
+
+# 백업 디렉토리 설정
+MSG_INSTALL_BACKUP_SETUP="📁 백업 저장 위치를 설정합니다"
+MSG_INSTALL_BACKUP_PROMPT="백업 파일들이 저장될 디렉토리를 입력하세요:"
+MSG_INSTALL_BACKUP_DEFAULT="• 기본값: %s"
+MSG_INSTALL_BACKUP_EXAMPLES="• 예시: ~/backup/tarsync, /data/backup/tarsync, /var/backup/tarsync"
+MSG_INSTALL_BACKUP_INPUT="백업 디렉토리 [%s]: "
+MSG_INSTALL_BACKUP_SELECTED="선택된 백업 디렉토리: %s"
+MSG_INSTALL_BACKUP_CREATED="✅ 백업 디렉토리가 생성되었습니다: %s"
+MSG_INSTALL_BACKUP_PERMISSIONS_OK="✅ 백업 디렉토리 권한이 확인되었습니다"
+MSG_INSTALL_BACKUP_SETUP_COMPLETE="📦 백업 디렉토리 설정이 완료되었습니다"
+
+# 파일 작업  
+MSG_INSTALL_FILES_COPIED="프로젝트 파일이 복사되었습니다"
+MSG_INSTALL_BACKUP_LOCATION="백업 저장 위치: %s"
+MSG_INSTALL_SCRIPT_INSTALLED="tarsync 스크립트가 설치되었습니다: %s"
+MSG_INSTALL_VERSION_INSTALLED="VERSION 파일이 설치되었습니다: %s"
+
+# 자동완성 시스템
+MSG_INSTALL_COMPLETION_INSTALLING="자동완성 기능 설치 중..."
+MSG_INSTALL_COMPLETION_INSTALLED="자동완성 파일이 설치되었습니다"
+MSG_INSTALL_COMPLETION_BASH_SETUP="bash-completion 시스템 설정 중..."
+MSG_INSTALL_COMPLETION_BASH_INSTALLED="bash-completion 패키지가 이미 설치되어 있습니다"
+MSG_INSTALL_COMPLETION_BASH_ACTIVE="bash completion이 이미 활성화되어 있습니다"
+MSG_INSTALL_COMPLETION_BASH_COMPLETE="bash-completion 시스템 설정이 완료되었습니다"
+MSG_INSTALL_COMPLETION_BASH_GLOBAL="Bash 자동완성이 시스템 전역에 설치되었습니다"
+MSG_INSTALL_COMPLETION_ZSH_GLOBAL="ZSH 자동완성이 시스템 전역에 설치되었습니다"
+
+# PATH 설정
+MSG_INSTALL_PATH_UPDATING="PATH 업데이트 중..."
+MSG_INSTALL_PATH_NOT_NEEDED="실행파일이 /usr/local/bin에 설치되어 PATH 업데이트가 필요하지 않습니다"
+
+# 설치 확인
+MSG_INSTALL_VERIFYING="설치 확인 중..."
+MSG_INSTALL_SUCCESS_TITLE="🎉 tarsync v%s 설치 완료!"
+MSG_INSTALL_LOCATIONS="📍 설치 위치:"
+MSG_INSTALL_EXECUTABLE="• 실행파일: %s"
+MSG_INSTALL_VERSION_FILE="• 버전파일: %s"
+MSG_INSTALL_LIBRARY="• 라이브러리: %s"
+MSG_INSTALL_BASH_COMPLETION="• Bash 자동완성: %s"
+MSG_INSTALL_ZSH_COMPLETION="• ZSH 자동완성: %s"
+
+# 자동완성 설정
+MSG_INSTALL_COMPLETION_IMMEDIATE="🚀 자동완성을 바로 사용하려면:"
+MSG_INSTALL_CONTAINER_DETECTED="📦 컨테이너 환경이 감지되었습니다"
+MSG_INSTALL_BASH_DETECTED="🐚 Bash 환경이 감지되었습니다"
+MSG_INSTALL_ZSH_DETECTED="🐚 ZSH 환경이 감지되었습니다"
+MSG_INSTALL_COMPLETION_OPTIONS="다음 중 하나를 실행하세요:"
+MSG_INSTALL_COMPLETION_RELOAD_BASHRC="1) source ~/.bashrc              # 설정 파일 다시 로드"
+MSG_INSTALL_COMPLETION_LOAD_DIRECT="2) source /etc/bash_completion   # completion 직접 로드"
+MSG_INSTALL_COMPLETION_NEW_SESSION="3) exec bash                     # 새 쉘 세션 시작 (권장)"
+MSG_INSTALL_COMPLETION_RELOAD_ZSHRC="1) source ~/.zshrc               # 설정 파일 다시 로드"
+MSG_INSTALL_COMPLETION_REINIT_ZSH="2) autoload -U compinit && compinit  # completion 재초기화"
+MSG_INSTALL_COMPLETION_NEW_ZSH="3) exec zsh                      # 새 쉘 세션 시작 (권장)"
+MSG_INSTALL_COMPLETION_COPY_TIP="💡 명령어를 복사해서 터미널에 붙여넣으세요"
+
+# 사용 예시
+MSG_INSTALL_USAGE_EXAMPLES="📖 tarsync 명령어 사용법:"
+MSG_INSTALL_USAGE_HELP="      tarsync help                    # 도움말"
+MSG_INSTALL_USAGE_VERSION="      tarsync version                 # 버전 확인"  
+MSG_INSTALL_USAGE_BACKUP="      tarsync backup /home/user       # 백업"
+MSG_INSTALL_USAGE_LIST="      tarsync list                    # 목록"
+MSG_INSTALL_COMPLETION_TIP="💡 탭 키를 눌러서 자동완성 기능을 사용해보세요!"
 
 # 제거 프로세스
 MSG_UNINSTALL_START="tarsync 제거를 시작합니다..."
