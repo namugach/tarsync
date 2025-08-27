@@ -120,15 +120,15 @@ show_manual_install_guide() {
 auto_install_dependencies() {
     local install_cmd="$1"
     
-    log_info "의존성을 자동으로 설치합니다..."
-    echo "   실행 명령어: $install_cmd"
+    msg "MSG_INSTALL_DEPS_INSTALLING"
+    msg "MSG_INSTALL_DEPS_COMMAND" "$install_cmd"
     echo ""
     
     if eval "$install_cmd"; then
-        log_success "✅ 의존성 설치가 완료되었습니다!"
+        success_msg "MSG_INSTALL_DEPS_SUCCESS"
         return 0
     else
-        log_error "❌ 자동 설치에 실패했습니다"
+        error_msg "MSG_INSTALL_DEPS_FAILED"
         return 1
     fi
 }
@@ -151,7 +151,7 @@ check_required_tools() {
     
     # 누락된 도구 알림
     echo ""
-    log_info "⚠️  다음 필수 도구들이 설치되지 않았습니다: ${missing_tools[*]}"
+    msg "MSG_INSTALL_DEPS_MISSING_TOOLS" "${missing_tools[*]}"
     
     # OS 감지
     local os_type=$(detect_os)
@@ -162,13 +162,13 @@ check_required_tools() {
         echo ""
         case "$os_type" in
             ubuntu|centos|fedora)
-                log_info "🚀 Linux 시스템이 감지되었습니다 ($os_type)"
+                msg "MSG_INSTALL_LINUX_DETECTED" "$os_type"
                 ;;
             macos)
-                log_info "🍎 macOS 시스템이 감지되었습니다"
+                msg "MSG_INSTALL_MACOS_DETECTED"
                 if ! command -v brew >/dev/null 2>&1; then
-                    log_error "Homebrew가 설치되지 않았습니다"
-                    log_info "Homebrew 설치: /bin/bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)\""
+                    error_msg "MSG_INSTALL_HOMEBREW_MISSING"
+                    msg "MSG_INSTALL_HOMEBREW_INSTALL"
                     show_manual_install_guide "${missing_tools[@]}"
                     exit 1
                 fi
@@ -176,7 +176,7 @@ check_required_tools() {
         esac
         
         echo ""
-        log_info "자동으로 설치하시겠습니까? (Y/n): "
+        printf "$(msg MSG_INSTALL_CONFIRM_AUTO_INSTALL)"
         read -r response
         response=${response:-Y}  # 기본값을 Y로 설정
         
@@ -191,7 +191,7 @@ check_required_tools() {
                 done
                 
                 if [ ${#still_missing[@]} -gt 0 ]; then
-                    log_error "일부 도구가 여전히 설치되지 않았습니다: ${still_missing[*]}"
+                    error_msg "MSG_INSTALL_SOME_TOOLS_MISSING" "${still_missing[*]}"
                     show_manual_install_guide "${still_missing[@]}"
                     exit 1
                 fi
@@ -205,7 +205,7 @@ check_required_tools() {
         fi
     else
         # 자동 설치 불가능한 경우
-        log_error "자동 설치를 지원하지 않는 시스템입니다 ($os_type)"
+        error_msg "MSG_INSTALL_UNSUPPORTED_SYSTEM" "$os_type"
         show_manual_install_guide "${missing_tools[@]}"
         exit 1
     fi
@@ -214,20 +214,20 @@ check_required_tools() {
 check_minimal_requirements() {
     # Bash 버전 체크
     if [ -z "$BASH_VERSION" ]; then
-        log_error "Bash 쉘이 필요합니다"
+        error_msg "MSG_INSTALL_BASH_REQUIRED"
         exit 1
     fi
     
     # sudo 권한 체크 (전역 설치 필요)
     if [ "$EUID" -ne 0 ]; then
-        log_error "전역 설치를 위해서는 sudo 권한이 필요합니다"
-        log_info "다음과 같이 실행해주세요: sudo ./bin/install.sh"
+        error_msg "MSG_INSTALL_SUDO_REQUIRED"
+        msg "MSG_INSTALL_SUDO_HINT"
         exit 1
     fi
     
     # 시스템 디렉토리 생성 가능 여부 체크
     if [ ! -w "/usr/local" ] || [ ! -w "/etc" ] || [ ! -w "/usr/share" ]; then
-        log_error "시스템 디렉토리에 쓰기 권한이 없습니다"
+        error_msg "MSG_INSTALL_WRITE_PERMISSION_ERROR"
         exit 1
     fi
 }
@@ -254,14 +254,14 @@ install_tarsync_script() {
     if check_file_exists "$INSTALL_DIR/tarsync" && [ -x "$INSTALL_DIR/tarsync" ]; then
         log_info "$(msg MSG_INSTALL_SCRIPT_INSTALLED "$INSTALL_DIR/tarsync")"
     else
-        log_error "tarsync 스크립트 설치에 실패했습니다"
+        error_msg "MSG_INSTALL_SCRIPT_INSTALL_FAILED"
         return 1
     fi
     
     if check_file_exists "$PROJECT_DIR/VERSION"; then
         log_info "$(msg MSG_INSTALL_VERSION_INSTALLED "$PROJECT_DIR/VERSION")"
     else
-        log_error "VERSION 파일 설치에 실패했습니다"
+        error_msg "MSG_INSTALL_VERSION_INSTALL_FAILED"
         return 1
     fi
 }
@@ -298,44 +298,44 @@ configure_backup_directory() {
     
     # 디렉토리 생성 시도
     if [[ ! -d "$backup_dir" ]]; then
-        log_info "백업 디렉토리가 존재하지 않습니다. 생성을 시도합니다..."
+        msg "MSG_INSTALL_BACKUP_DIR_NOT_EXIST"
         
         if mkdir -p "$backup_dir" 2>/dev/null; then
-            log_success "✅ 백업 디렉토리가 생성되었습니다: $backup_dir"
+            success_msg "MSG_INSTALL_BACKUP_DIR_CREATED" "$backup_dir"
         else
-            log_info "⚠️ 디렉토리 생성에 실패했습니다. sudo 권한이 필요할 수 있습니다."
+            msg "MSG_INSTALL_BACKUP_DIR_CREATE_FAILED"
             echo ""
-            echo "다음 명령어를 실행해보세요:"
+            msg "MSG_INSTALL_BACKUP_DIR_COMMAND_TIP"
             echo "   sudo mkdir -p '$backup_dir'"
             echo "   sudo chown \$USER:\$USER '$backup_dir'"
             echo ""
-            log_info "위 명령어를 실행하고 다시 설치하시겠습니까? (y/N): "
+            printf "$(msg MSG_INSTALL_BACKUP_DIR_RETRY_PROMPT)"
             read -r retry_response
             
             if [[ "$retry_response" =~ ^[Yy]$ ]]; then
                 echo "sudo mkdir -p '$backup_dir' && sudo chown \$USER:\$USER '$backup_dir'" | bash
                 if [[ -d "$backup_dir" ]] && [[ -w "$backup_dir" ]]; then
-                    log_success "✅ sudo를 사용하여 백업 디렉토리가 생성되었습니다"
+                    success_msg "MSG_INSTALL_BACKUP_DIR_SUDO_SUCCESS"
                 else
-                    log_error "❌ 백업 디렉토리 생성에 실패했습니다"
+                    error_msg "MSG_INSTALL_BACKUP_DIR_SUDO_FAILED"
                     exit 1
                 fi
             else
-                log_error "❌ 백업 디렉토리를 생성할 수 없어 설치를 중단합니다"
+                error_msg "MSG_INSTALL_BACKUP_DIR_CANNOT_CREATE"
                 exit 1
             fi
         fi
     else
         # 기존 디렉토리 권한 확인
         if [[ -w "$backup_dir" ]]; then
-            log_success "✅ 백업 디렉토리 권한이 확인되었습니다"
+            success_msg "MSG_INSTALL_BACKUP_DIR_PERMISSIONS_OK"
         else
-            log_info "⚠️ 백업 디렉토리에 쓰기 권한이 없습니다: $backup_dir"
+            msg "MSG_INSTALL_BACKUP_DIR_NO_WRITE" "$backup_dir"
             echo ""
-            echo "권한 수정을 시도하시겠습니까?"
-            echo "   실행할 명령어: sudo chown \$USER:\$USER '$backup_dir'"
+            msg "MSG_INSTALL_BACKUP_DIR_FIX_PERMISSION"
+            msg "MSG_INSTALL_BACKUP_DIR_FIX_COMMAND" "$backup_dir"
             echo ""
-            log_info "권한을 수정하시겠습니까? (y/N): "
+            printf "$(msg MSG_INSTALL_BACKUP_DIR_FIX_PROMPT)"
             read -r fix_permission
             
             if [[ "$fix_permission" =~ ^[Yy]$ ]]; then
@@ -343,18 +343,18 @@ configure_backup_directory() {
                 
                 # 권한 수정 후 재확인
                 if [[ -w "$backup_dir" ]]; then
-                    log_success "✅ 권한이 수정되어 백업 디렉토리를 사용할 수 있습니다"
+                    success_msg "MSG_INSTALL_BACKUP_DIR_PERMISSION_FIXED"
                 else
-                    log_error "❌ 권한 수정에 실패했습니다"
+                    error_msg "MSG_INSTALL_BACKUP_DIR_FIX_FAILED"
                     echo ""
-                    log_info "다른 백업 디렉토리를 사용하시겠습니까? (Y/n): "
+                    printf "$(msg MSG_INSTALL_BACKUP_DIR_USE_OTHER)"
                     read -r retry_response
                     retry_response=${retry_response:-Y}
                     
                     if [[ "$retry_response" =~ ^[Yy]$ ]]; then
                         echo ""
-                        echo "다른 백업 디렉토리를 입력하세요:"
-                        echo -n "   백업 디렉토리: "
+                        msg "MSG_INSTALL_BACKUP_DIR_ENTER_NEW"
+                        printf "$(msg MSG_INSTALL_BACKUP_DIR_INPUT_PROMPT)"
                         read -r new_backup_dir
                         
                         if [[ -n "$new_backup_dir" ]]; then
@@ -369,33 +369,33 @@ configure_backup_directory() {
                                 backup_dir="${HOME}"
                             fi
                             
-                            log_info "새로운 백업 디렉토리: $backup_dir"
+                            msg "MSG_INSTALL_BACKUP_DIR_NEW_PATH" "$backup_dir"
                             
                             # 새 경로로 다시 검증 (간단한 재귀)
                             if [[ ! -d "$backup_dir" ]]; then
                                 if mkdir -p "$backup_dir" 2>/dev/null; then
-                                    log_success "✅ 새 백업 디렉토리가 생성되었습니다: $backup_dir"
+                                    success_msg "MSG_INSTALL_BACKUP_DIR_NEW_SUCCESS" "$backup_dir"
                                 else
-                                    log_error "❌ 새 백업 디렉토리 생성에 실패했습니다"
+                                    error_msg "MSG_INSTALL_BACKUP_DIR_NEW_FAILED"
                                     exit 1
                                 fi
                             elif [[ ! -w "$backup_dir" ]]; then
-                                log_error "❌ 새 백업 디렉토리에도 쓰기 권한이 없습니다: $backup_dir"
+                                error_msg "MSG_INSTALL_BACKUP_DIR_NEW_NO_WRITE" "$backup_dir"
                                 exit 1
                             else
-                                log_success "✅ 새 백업 디렉토리 권한이 확인되었습니다"
+                                success_msg "MSG_INSTALL_BACKUP_DIR_NEW_PERMISSION_OK"
                             fi
                         else
-                            log_error "❌ 유효한 백업 디렉토리가 입력되지 않았습니다"
+                            error_msg "MSG_INSTALL_BACKUP_DIR_INVALID"
                             exit 1
                         fi
                     else
-                        log_error "❌ 사용 가능한 백업 디렉토리가 없어 설치를 중단합니다"
+                        error_msg "MSG_INSTALL_BACKUP_DIR_NO_AVAILABLE"
                         exit 1
                     fi
                 fi
             else
-                log_error "❌ 백업 디렉토리 권한 문제로 설치를 중단합니다"
+                error_msg "MSG_INSTALL_BACKUP_DIR_PERMISSION_ERROR"
                 exit 1
             fi
         fi
@@ -477,7 +477,7 @@ process_language_file() {
             langs+=("$code")
             lang_names+=("$name")
             
-            if [ "$code" = "en" ]; then  # tarsync 기본값은 영어 (글로벌화)
+            if [ "$code" = "en" ]; then  # tarsync default is English (globalization)
                 default_idx=$i
             fi
             
@@ -506,7 +506,7 @@ find_available_languages() {
     if [ ${#langs[@]} -eq 0 ]; then
         langs=("en" "ko")
         lang_names=("English" "한국어")
-        default_idx=0  # 영어가 기본값 (글로벌화)
+        default_idx=0  # English is default (globalization)
     fi
 }
 
@@ -519,7 +519,7 @@ display_language_options() {
     for i in "${!langs[@]}"; do
         local default_mark=""
         if [ $i -eq $default_idx ]; then
-            default_mark=" (기본값)"
+            default_mark=$(msg "MSG_INSTALL_DEFAULT_MARK")
         fi
         echo "   $((i+1)). ${lang_names[$i]}${default_mark}"
     done
@@ -528,7 +528,7 @@ display_language_options() {
 # 언어 선택 입력 처리
 handle_language_selection() {
     echo ""
-    echo -n "언어를 선택하세요 (0-${#langs[@]}): "
+    printf "$(msg MSG_INSTALL_LANGUAGE_INPUT "$(( ${#langs[@]} - 1 ))")"
     read -r lang_choice
     
     if [ "$lang_choice" = "0" ]; then
@@ -598,8 +598,8 @@ verify_installation() {
     if check_file_exists "$INSTALL_DIR/tarsync" && [ -x "$INSTALL_DIR/tarsync" ]; then
         show_success_message
     else
-        log_error "tarsync 설치에 실패했습니다"
-        log_error "tarsync 스크립트를 찾을 수 없습니다: $INSTALL_DIR/tarsync"
+        error_msg "MSG_INSTALL_VERIFY_FAILED"
+        error_msg "MSG_INSTALL_SCRIPT_NOT_FOUND" "$INSTALL_DIR/tarsync"
         exit 1
     fi
 }
@@ -609,14 +609,14 @@ show_success_message() {
     local version=$(get_version)
     
     echo ""
-    log_success "🎉 tarsync v$version 설치 완료!"
+    success_msg "MSG_INSTALL_SUCCESS_HEADER" "$version"
     echo ""
-    log_info "📍 설치 위치:"
-    echo "   • 실행파일: $INSTALL_DIR/tarsync"
-    echo "   • 버전파일: $PROJECT_DIR/VERSION"
-    echo "   • 라이브러리: $PROJECT_DIR"
-    echo "   • Bash 자동완성: $COMPLETION_DIR/tarsync"
-    echo "   • ZSH 자동완성: $ZSH_COMPLETION_DIR/_tarsync"
+    msg "MSG_INSTALL_LOCATIONS_HEADER"
+    msg "MSG_INSTALL_LOCATION_EXECUTABLE" "$INSTALL_DIR/tarsync"
+    msg "MSG_INSTALL_LOCATION_VERSION" "$PROJECT_DIR/VERSION"
+    msg "MSG_INSTALL_LOCATION_LIBRARY" "$PROJECT_DIR"
+    msg "MSG_INSTALL_LOCATION_BASH_COMPLETION" "$COMPLETION_DIR/tarsync"
+    msg "MSG_INSTALL_LOCATION_ZSH_COMPLETION" "$ZSH_COMPLETION_DIR/_tarsync"
     echo ""
     
     # 환경 감지 및 자동완성 즉시 사용 옵션 제공
@@ -794,8 +794,8 @@ setup_bash_completion() {
 
 main() {
     echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
-    echo -e "${CYAN}║           TARSYNC 설치 도구            ║${NC}"
-    echo -e "${CYAN}║      Shell Script 백업 시스템          ║${NC}"
+    echo -e "${CYAN}║           $(msg MSG_INSTALL_HEADER_TITLE)            ║${NC}"
+    echo -e "${CYAN}║      $(msg MSG_INSTALL_HEADER_SUBTITLE)          ║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
     
@@ -835,7 +835,7 @@ main() {
     install_tarsync_script || exit 1
     
     # 자동완성 설치
-    log_info "자동완성 기능 설치 중..."
+    msg "MSG_INSTALL_COMPLETION_INSTALLING"
     install_completions || exit 1
     
     # bash-completion 시스템 활성화
@@ -845,7 +845,7 @@ main() {
     configure_zsh_completion
     
     # PATH 업데이트
-    log_info "PATH 업데이트 중..."
+    msg "MSG_INSTALL_PATH_UPDATING"
     update_path
     
     # 설치 확인

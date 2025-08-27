@@ -121,22 +121,22 @@ create_note_file() {
 
 EOF
     
-    echo "📝 사용자 메모 파일을 편집합니다..."
-    echo "   (백업 관련 메모를 작성하세요)"
+    msg "MSG_NOTES_EDIT"
+    msg "MSG_NOTES_EDIT_INFO"
     
     # 에디터로 편집
     if command -v vim >/dev/null 2>&1; then
-        echo "   (저장하고 종료: :wq, 편집 없이 종료: :q)"
+        msg "MSG_NOTES_EDITOR_VIM"
         vim "$note_file"
     elif command -v nano >/dev/null 2>&1; then
-        echo "   (저장하고 종료: Ctrl+X)"
+        msg "MSG_NOTES_EDITOR_NANO"
         nano "$note_file"
     else
-        echo "⚠️  텍스트 에디터를 찾을 수 없습니다. 기본 템플릿만 생성됩니다."
+        msg "MSG_NOTES_NO_EDITOR"
         return
     fi
     
-    echo "📝 사용자 메모가 저장되었습니다: $note_file"
+    msg "MSG_NOTES_SAVED"
 }
 
 # JSON 로그의 user_notes 플래그 업데이트
@@ -192,13 +192,13 @@ update_json_log_completion() {
 create_backup_log() {
     local work_dir="$1"
     
-    echo "📝 백업 로그를 생성합니다..."
+    msg "MSG_BACKUP_CREATING_LOG"
     
     # 기본 JSON 로그 생성
     create_basic_json_log "$work_dir" "in_progress" false
     
     # 사용자 메모 작성 옵션
-    echo -n "📝 사용자 메모를 작성하시겠습니까? (Y/n): "
+    printf "$(msg MSG_NOTES_CREATE_PROMPT)"
     read -r create_notes
     create_notes=${create_notes:-Y}
     
@@ -210,7 +210,7 @@ create_backup_log() {
         update_json_user_notes_flag "$work_dir" true
     fi
     
-    echo "📝 로그 파일이 생성되었습니다."
+    msg "MSG_BACKUP_LOG_CREATED"
 }
 
 # 백업 실행 함수
@@ -257,42 +257,42 @@ ensure_backup_directory_structure() {
     local store_dir="$backup_path/store"
     local restore_dir="$backup_path/restore"
     
-    echo "📁 백업 디렉토리 구조 확인 중..."
+    msg "MSG_BACKUP_CHECKING_STRUCTURE"
     
     # 백업 루트 디렉토리 생성
     if [[ ! -d "$backup_path" ]]; then
-        echo "  생성: $backup_path"
+        msg "MSG_SYSTEM_CREATING_DIR" "$backup_path"
         if ! sudo mkdir -p "$backup_path"; then
-            echo "❌ 백업 디렉토리 생성 실패: $backup_path"
+            error_msg "MSG_BACKUP_DIR_CREATE_FAILED" "$backup_path"
             return 1
         fi
     else
-        echo "  존재: $backup_path ✓"
+        msg "MSG_SYSTEM_DIRECTORY_EXISTS" "$backup_path"
     fi
     
     # store 디렉토리 생성
     if [[ ! -d "$store_dir" ]]; then
-        echo "  생성: $store_dir"
+        msg "MSG_SYSTEM_CREATING_DIR" "$store_dir"
         if ! sudo mkdir -p "$store_dir"; then
-            echo "❌ 백업 저장소 생성 실패: $store_dir"
+            error_msg "MSG_BACKUP_STORE_CREATE_FAILED" "$store_dir"
             return 1
         fi
     else
-        echo "  존재: $store_dir ✓"
+        msg "MSG_SYSTEM_DIRECTORY_EXISTS" "$store_dir"
     fi
     
     # restore 디렉토리 생성
     if [[ ! -d "$restore_dir" ]]; then
-        echo "  생성: $restore_dir"
+        msg "MSG_SYSTEM_CREATING_DIR" "$restore_dir"
         if ! sudo mkdir -p "$restore_dir"; then
-            echo "❌ 복구 저장소 생성 실패: $restore_dir"
+            error_msg "MSG_RESTORE_STORE_CREATE_FAILED" "$restore_dir"
             return 1
         fi
     else
-        echo "  존재: $restore_dir ✓"
+        msg "MSG_SYSTEM_DIRECTORY_EXISTS" "$restore_dir"
     fi
     
-    echo "✅ 백업 디렉토리 구조가 준비되었습니다."
+    success_msg "MSG_BACKUP_STRUCTURE_READY"
     return 0
 }
 
@@ -301,7 +301,7 @@ show_backup_result() {
     local store_dir="$1"
     
     echo ""
-    echo "📋 최근 백업 목록:"
+    msg "MSG_BACKUP_RECENT_LIST"
     echo "===================="
     
     # 최근 5개 백업 디렉토리 출력
@@ -328,7 +328,7 @@ show_backup_result() {
             echo "  $log_icon $size_info - $dir_name"
         done
     else
-        echo "  백업 디렉토리가 없습니다."
+        msg "MSG_BACKUP_NO_DIRECTORY"
     fi
     
     echo "===================="
@@ -338,12 +338,12 @@ show_backup_result() {
 backup() {
     local source_path="${1:-$BACKUP_DISK}"
     
-    echo "🔍 tarsync 백업 시작..."
+    msg "MSG_BACKUP_START"
     echo ""
     
     # 0. 백업 디렉토리 확인 및 생성
     if ! ensure_backup_directory_structure; then
-        echo "❌ 백업을 중단합니다."
+        error_msg "MSG_BACKUP_CANCELLED"
         exit 1
     fi
     echo ""
@@ -353,12 +353,12 @@ backup() {
     echo ""
     
     # 2. 백업 대상 검증
-    echo "🔍 백업 대상 검증 중..."
+    msg "MSG_BACKUP_VALIDATING_TARGET"
     if ! validate_backup_source "$source_path"; then
-        echo "❌ 백업을 중단합니다."
+        error_msg "MSG_BACKUP_CANCELLED"
         exit 1
     fi
-    echo "✅ 백업 대상이 유효합니다: $source_path"
+    success_msg "MSG_BACKUP_TARGET_VALID" "$source_path"
     echo ""
     
     # 3. 백업 크기 계산
@@ -371,41 +371,41 @@ backup() {
     work_dir=$(get_store_work_dir_path)
     local tar_file="$work_dir/tarsync.tar.gz"
     
-    echo "📁 작업 디렉토리: $work_dir"
+    msg "MSG_BACKUP_WORK_DIR" "$work_dir"
     echo ""
     
     # 5. 백업 저장소 검증 및 용량 체크
-    echo "🔍 저장소 용량 확인 중..."
+    msg "MSG_BACKUP_DISK_SPACE_CHECK"
     local store_dir
     store_dir=$(get_store_dir_path)
     
     if ! validate_backup_destination "$store_dir"; then
-        echo "❌ 백업을 중단합니다."
+        error_msg "MSG_BACKUP_CANCELLED"
         exit 1
     fi
     
     if ! check_disk_space "$store_dir" "$final_size"; then
-        echo "❌ 백업을 중단합니다."
+        error_msg "MSG_BACKUP_CANCELLED"
         exit 1
     fi
-    echo "✅ 저장소 용량이 충분합니다."
+    success_msg "MSG_BACKUP_DISK_SPACE_OK"
     echo ""
     
     # 6. 디렉토리 생성
-    echo "📁 작업 디렉토리 생성 중..."
+    msg "MSG_BACKUP_CREATING_WORK_DIR"
     create_store_dir
     create_directory "$work_dir"
-    echo "✅ 작업 디렉토리가 생성되었습니다."
+    success_msg "MSG_BACKUP_WORK_DIR_CREATED"
     echo ""
     
     # 7. 메타데이터 생성
-    echo "📄 메타데이터 생성 중..."
+    msg "MSG_BACKUP_CREATING_META"
     local created_date exclude_paths
     created_date=$(get_date)
     readarray -t exclude_paths < <(get_exclude_paths)
     
     create_metadata "$work_dir" "$final_size" "$created_date" "${exclude_paths[@]}"
-    echo "✅ 메타데이터가 생성되었습니다: $work_dir/meta.sh"
+    success_msg "MSG_BACKUP_META_CREATED" "$work_dir/meta.sh"
     echo ""
     
     # 8. 로그 파일 생성 (필수)
@@ -435,13 +435,13 @@ backup() {
         show_backup_result "$store_dir"
         
         echo ""
-        echo "🎉 백업이 완료되었습니다!"
-        echo "📂 백업 위치: $work_dir"
+        success_msg "MSG_BACKUP_COMPLETE"
+        msg "MSG_BACKUP_LOCATION" "$work_dir"
         
         return 0
     else
         echo ""
-        echo "💥 백업에 실패했습니다!"
+        error_msg "MSG_BACKUP_FAILED"
         
         # 백업 실패 시간 계산 및 JSON 로그 업데이트
         local backup_end_time=$(date +%s)
@@ -451,7 +451,7 @@ backup() {
         
         # 실패한 경우 작업 디렉토리 정리
         if [[ -d "$work_dir" ]]; then
-            echo "🧹 실패한 백업 파일을 정리합니다..."
+            msg "MSG_BACKUP_CLEANUP_FAILED"
             rm -rf "$work_dir"
         fi
         
