@@ -147,7 +147,7 @@ show_settings_help() {
     printf "\n"
     printf "Supported languages:\n"
     printf "  en    English\n"
-    printf "  ko    한국어 - Korean\n"
+    printf "  ko    Korean\n"
     printf "\n"
     printf "Configuration files:\n"
     printf "  User:   %s\n" "$USER_SETTINGS_FILE"

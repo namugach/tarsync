@@ -25,7 +25,7 @@ ensure_command_exists() {
     
     if ! command -v "$command" >/dev/null 2>&1; then
         error_msg "MSG_ERROR_MISSING_ARGUMENT" "$command"
-        printf "   다음 명령어로 설치하세요: $install_command\n"
+        printf "   Install with: $install_command\n"
         exit 1
     fi
 }
@@ -122,8 +122,8 @@ check_disk_space() {
     
     if (( available_bytes < required_bytes )); then
         error_msg "MSG_BACKUP_FAILED" "저장 공간 부족"
-        printf "   필요한 공간: $(convert_size "$required_bytes")\n"
-        printf "   사용 가능한 공간: $(convert_size "$available_bytes")\n"
+        printf "   Required space: $(convert_size "$required_bytes")\n"
+        printf "   Available space: $(convert_size "$available_bytes")\n"
         return 1
     fi
     
@@ -135,17 +135,17 @@ validate_backup_source() {
     local source_path="$1"
     
     if ! is_path_exists "$source_path"; then
-        echo "❌ 백업 대상 경로가 존재하지 않습니다: $source_path"
+        echo "❌ Backup source path does not exist: $source_path"
         return 1
     fi
     
     if ! is_directory "$source_path"; then
-        echo "❌ 백업 대상이 디렉토리가 아닙니다: $source_path"
+        echo "❌ Backup source is not a directory: $source_path"
         return 1
     fi
     
     if ! is_readable "$source_path"; then
-        echo "❌ 백업 대상 디렉토리에 읽기 권한이 없습니다: $source_path"
+        echo "❌ No read permission for backup source directory: $source_path"
         return 1
     fi
     
@@ -161,12 +161,12 @@ validate_backup_destination() {
     parent_dir=$(dirname "$dest_path")
     
     if ! is_path_exists "$parent_dir"; then
-        echo "❌ 백업 저장 경로의 상위 디렉토리가 존재하지 않습니다: $parent_dir"
+        echo "❌ Parent directory of backup destination does not exist: $parent_dir"
         return 1
     fi
     
     if ! is_writable "$parent_dir"; then
-        echo "❌ 백업 저장 경로에 쓰기 권한이 없습니다: $parent_dir"
+        echo "❌ No write permission for backup destination: $parent_dir"
         return 1
     fi
     
@@ -175,12 +175,12 @@ validate_backup_destination() {
 
 # 필수 명령어들이 설치되어 있는지 확인
 validate_required_tools() {
-    echo "🔍 필수 도구 확인 중..."
+    echo "🔍 Checking required tools..."
     
     ensure_command_exists "tar" "sudo apt install tar"
     ensure_command_exists "pv" "sudo apt install pv"
     ensure_command_exists "rsync" "sudo apt install rsync"
     ensure_command_exists "gzip" "sudo apt install gzip"
     
-    echo "✅ 모든 필수 도구가 설치되어 있습니다."
+    echo "✅ All required tools are installed."
 } 

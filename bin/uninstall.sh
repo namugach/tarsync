@@ -1,23 +1,23 @@
 #!/bin/bash
 
-# ===== Tarsync 제거 도구 =====
+# ===== Tarsync Uninstaller =====
 # ===== Tarsync Uninstaller =====
 
-# 유틸리티 모듈 로드
+# Load utility modules
 # Load utility modules
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$PROJECT_ROOT/src/utils/colors.sh"
 source "$PROJECT_ROOT/src/utils/log.sh"
 
-# 언어 감지 및 메시지 시스템 로드
+# Language detection and message system loading
 source "$PROJECT_ROOT/config/messages/detect.sh"
 source "$PROJECT_ROOT/config/messages/load.sh"
 
-# 메시지 시스템 초기화
+# Initialize message system
 load_tarsync_messages
 
 
-# 설치 경로 (전역 설치)
+# Installation paths (Global installation)
 # Installation paths (Global installation)
 PROJECT_DIR="/usr/share/tarsync"
 INSTALL_DIR="/usr/local/bin"
@@ -25,7 +25,7 @@ COMPLETION_DIR="/etc/bash_completion.d"
 ZSH_COMPLETION_DIR="/usr/share/zsh/site-functions"
 CONFIG_DIR="/etc/tarsync"
 
-# sudo 권한 체크
+# Check sudo privileges
 check_sudo_privileges() {
     if [ "$EUID" -ne 0 ]; then
         error_msg "MSG_INSTALL_SUDO_REQUIRED"
@@ -34,30 +34,30 @@ check_sudo_privileges() {
     fi
 }
 
-# tarsync 파일들 제거 (전역 설치)
+# Remove tarsync files (Global installation)
 # Remove tarsync files (Global installation)
 remove_tarsync() {
     msg "MSG_UNINSTALL_START"
     
-    # 실행파일 제거
+    # Remove executable
     if [ -f "$INSTALL_DIR/tarsync" ]; then
         rm -f "$INSTALL_DIR/tarsync"
         msg "MSG_SYSTEM_REMOVING_FILE" "$INSTALL_DIR/tarsync"
     fi
     
-    # 프로젝트 디렉토리 제거
+    # Remove project directory
     if [ -d "$PROJECT_DIR" ]; then
         rm -rf "$PROJECT_DIR"
         msg "MSG_SYSTEM_REMOVING_FILE" "$PROJECT_DIR"
     fi
     
-    # 설정 디렉토리 제거
+    # Remove configuration directory
     if [ -d "$CONFIG_DIR" ]; then
         rm -rf "$CONFIG_DIR"
         msg "MSG_SYSTEM_REMOVING_FILE" "$CONFIG_DIR"
     fi
     
-    # 자동완성 파일들 제거
+    # Remove completion files
     if [ -f "$COMPLETION_DIR/tarsync" ]; then
         rm -f "$COMPLETION_DIR/tarsync"
         msg "MSG_SYSTEM_REMOVING_FILE" "$COMPLETION_DIR/tarsync"
@@ -71,39 +71,39 @@ remove_tarsync() {
     success_msg "MSG_UNINSTALL_COMPLETE"
 }
 
-# PATH에서 tarsync 제거 (전역 설치에서는 불필요)
+# Remove tarsync from PATH (Not needed for global installation)
 # Remove tarsync from PATH (Not needed for global installation)
 remove_from_path() {
     msg "MSG_INSTALL_PATH_NOT_NEEDED"
 }
 
-# 자동완성 설정 제거 (전역 설치에서는 시스템 파일에서 이미 제거됨)
+# Remove completion settings (Already removed from system files in global installation)
 # Remove completion settings (Already removed from system files in global installation)
 remove_completion_settings() {
     msg "MSG_INSTALL_COMPLETION_BASH_COMPLETE"
 }
 
-# 제거 확인 (전역 설치)
+# Verify uninstallation (Global installation)
 # Verify uninstallation (Global installation)
 verify_uninstallation() {
     local issues=()
     
-    # 실행파일 확인
+    # Check executable
     if [ -f "$INSTALL_DIR/tarsync" ]; then
         issues+=("$(msg MSG_INSTALL_SCRIPT_NOT_FOUND "$INSTALL_DIR/tarsync")")
     fi
     
-    # 프로젝트 디렉토리 확인
+    # Check project directory
     if [ -d "$PROJECT_DIR" ]; then
         issues+=("$(msg MSG_SYSTEM_DIRECTORY_EXISTS "$PROJECT_DIR")")
     fi
     
-    # 설정 디렉토리 확인
+    # Check configuration directory
     if [ -d "$CONFIG_DIR" ]; then
         issues+=("$(msg MSG_SYSTEM_DIRECTORY_EXISTS "$CONFIG_DIR")")
     fi
     
-    # 자동완성 파일 확인
+    # Check completion files
     if [ -f "$COMPLETION_DIR/tarsync" ]; then
         issues+=("$(msg MSG_SYSTEM_FILE_EXISTS "$COMPLETION_DIR/tarsync")")
     fi
@@ -126,7 +126,7 @@ verify_uninstallation() {
     fi
 }
 
-# 사용자 확인 (전역 설치)
+# User confirmation (Global installation)
 # User confirmation (Global installation)
 confirm_uninstall() {
     echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
@@ -154,20 +154,20 @@ confirm_uninstall() {
     fi
 }
 
-# 메인 제거 프로세스 (전역 설치)
+# Main uninstall process (Global installation)
 # Main uninstall process (Global installation)
 main() {
-    # sudo 권한 체크
+    # Check sudo privileges
     check_sudo_privileges
     
-    # 사용자 확인
+    # User confirmation
     confirm_uninstall
     
     echo ""
     msg "MSG_UNINSTALL_START"
     echo ""
     
-    # 순차적 제거
+    # Sequential removal
     remove_tarsync || {
         error_msg "MSG_UNINSTALL_FAILED"
         exit 1
@@ -179,7 +179,7 @@ main() {
     echo ""
     msg "MSG_INSTALL_VERIFYING"
     
-    # 제거 확인
+    # Verify removal
     if verify_uninstallation; then
         echo ""
         success_msg "MSG_UNINSTALL_COMPLETE"
@@ -193,6 +193,6 @@ main() {
     fi
 }
 
-# 메인 함수 실행
+# Execute main function
 # Execute main function
 main 

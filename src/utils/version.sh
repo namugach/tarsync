@@ -97,7 +97,7 @@ check_min_version() {
     local comparison=$(compare_versions "$current_version" "$required_version")
     
     if [[ "$comparison" == "-1" ]]; then
-        echo "현재 버전($current_version)이 최소 요구 버전($required_version)보다 낮습니다." >&2
+        echo "Current version ($current_version) is lower than minimum required version ($required_version)." >&2
         return 1
     fi
     

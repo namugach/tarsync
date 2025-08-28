@@ -94,7 +94,7 @@ get_path_size_formatted() {
     elif [[ -d "$path" ]]; then
         size_bytes=$(get_directory_size "$path")
     else
-        echo "경로가 존재하지 않음"
+        echo "Path does not exist"
         return 1
     fi
     

@@ -13,7 +13,14 @@ source "$(get_script_dir)/../utils/validation.sh"
 source "$(get_script_dir)/../utils/config.sh"
 source "$(get_script_dir)/../utils/log.sh"
 
-# 설정 로드 (config.sh에서 처리)
+# 메시지 시스템 로드
+SCRIPT_DIR="$(get_script_dir)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+source "$PROJECT_ROOT/config/messages/detect.sh"
+source "$PROJECT_ROOT/config/messages/load.sh"
+load_tarsync_messages
+
+# 설정 로드 (config.sh에서 처리)  
 load_backup_settings
 
 # shell 명령어 실행 (stdout/stderr 직접 출력) - 기존 $ 함수
@@ -33,7 +40,7 @@ run_command_capture() {
     if [[ $exit_code -eq 0 ]]; then
         echo "$output"
     else
-        echo "❌ 명령어 실행 실패: $*" >&2
+        msg "MSG_COMMON_COMMAND_FAILED" "$*" >&2
         echo "$output" >&2
         return $exit_code
     fi
@@ -91,7 +98,7 @@ create_store_dir() {
         return 0
     fi
     
-    echo "📁 백업 저장소 생성 중: $store_dir"
+    echo "📁 Creating backup storage: $store_dir"
     
     # 디렉토리 생성
     create_directory "$store_dir"
@@ -157,7 +164,7 @@ update_metadata_backup_size() {
     sed -i "/^META_CREATED=/a\\
 META_BACKUP_SIZE=$backup_file_size" "$meta_file"
     
-    echo "📦 백업 파일 크기가 메타데이터에 기록되었습니다: $(convert_size "$backup_file_size")"
+    echo "📦 Backup file size recorded in metadata: $(convert_size "$backup_file_size")"
 }
 
 # 메타데이터 파일 읽기
@@ -169,7 +176,7 @@ load_metadata() {
         source "$meta_file"
         return 0
     else
-        echo "❌ 메타데이터 파일을 찾을 수 없습니다: $meta_file" >&2
+        echo "❌ Cannot find metadata file: $meta_file" >&2
         return 1
     fi
 }
@@ -180,7 +187,7 @@ calculate_final_backup_size() {
     local total_size used_size final_size
     local exclude_paths
     
-    echo "📊 백업 크기 계산 중..." >&2
+    echo "📊 Calculating backup size..." >&2
     
     # 전체 사용량 계산
     total_size=$(get_directory_usage "$source_path")
@@ -197,17 +204,17 @@ calculate_final_backup_size() {
             
             if (( exclude_size > 0 )); then
                 used_size=$((used_size - exclude_size))
-                echo "  제외 경로 '$exclude_path': $(convert_size "$exclude_size")" >&2
+                echo "  Excluded path '$exclude_path': $(convert_size "$exclude_size")" >&2
             fi
         else
-            echo "  제외 경로 '$exclude_path': 다른 파일시스템 또는 존재하지 않음" >&2
+            echo "  Excluded path '$exclude_path': different filesystem or does not exist" >&2
         fi
     done
     
     final_size=$used_size
     
-    echo "  전체 크기: $(convert_size "$total_size")" >&2
-    echo "  최종 백업 크기: $(convert_size "$final_size")" >&2
+    echo "  Total size: $(convert_size "$total_size")" >&2
+    echo "  Final backup size: $(convert_size "$final_size")" >&2
     
     # 크기만 stdout으로 반환
     echo "$final_size"
@@ -218,15 +225,15 @@ run_with_progress() {
     local command="$1"
     local description="$2"
     
-    echo "🚀 $description 시작..."
-    echo "   명령어: $command"
+    echo "🚀 Starting $description..."
+    echo "   Command: $command"
     
     # 명령어 실행
     if eval "$command"; then
-        echo "✅ $description 완료!"
+        echo "✅ $description completed!"
         return 0
     else
-        echo "❌ $description 실패!"
+        echo "❌ $description failed!"
         return 1
     fi
 } 

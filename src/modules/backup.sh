@@ -220,8 +220,8 @@ execute_backup() {
     local exclude_options="$3"
     
     msg "MSG_BACKUP_START"
-    printf "📌 원본: $source_path\n"
-    printf "📌 저장 경로: $target_file\n"
+    printf "📌 Source: $source_path\n"
+    printf "📌 Target path: $target_file\n"
     local exclude_count=$(get_exclude_paths | wc -l)
     msg "MSG_BACKUP_EXCLUDE_PATHS" "$exclude_count"
     echo ""
@@ -230,7 +230,7 @@ execute_backup() {
     local tar_command="sudo tar cf - -P --one-file-system --acls --xattrs $exclude_options $source_path | pv | gzip > $target_file"
     
     msg "MSG_BACKUP_CREATING_ARCHIVE"
-    printf "   명령어: $tar_command\n"
+    printf "   Command: $tar_command\n"
     echo ""
     
     # 백업 실행
@@ -241,7 +241,7 @@ execute_backup() {
         # 생성된 파일 크기 확인
         local file_size
         file_size=$(get_file_size "$target_file")
-        printf "📦 백업 파일 크기: $(convert_size "$file_size")\n"
+        printf "📦 Backup file size: $(convert_size "$file_size")\n"
         
         return 0
     else

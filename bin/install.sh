@@ -493,7 +493,7 @@ find_available_languages() {
     default_idx=0
     i=0
     
-    log_info "$(msg MSG_INSTALL_FINDING_LANGUAGES)"
+    log_info "Finding available languages..."
     
     # 언어 메시지 파일들 검사
     for lang_file in "$PROJECT_ROOT/config/messages"/*.sh; do
@@ -646,38 +646,38 @@ show_shell_specific_completion_commands() {
     echo ""
     case "$user_shell" in
         bash)
-            echo -e "   ${CYAN}🐚 Bash 환경이 감지되었습니다${NC}"
+            echo -e "   ${CYAN}🐚 Bash environment detected${NC}"
             echo ""
-            echo "   다음 중 하나를 실행하세요:"
-            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # 설정 파일 다시 로드"
-            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # completion 직접 로드"  
-            echo -e "   ${YELLOW}3) exec bash${NC}                     # 새 쉘 세션 시작 (권장)"
+            echo "   Run one of the following:"
+            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # Reload configuration file"
+            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # Load completion directly"  
+            echo -e "   ${YELLOW}3) exec bash${NC}                     # Start new shell session (recommended)"
             ;;
         zsh)
-            echo -e "   ${CYAN}🐚 ZSH 환경이 감지되었습니다${NC}"
+            echo -e "   ${CYAN}🐚 ZSH environment detected${NC}"
             echo ""
-            echo "   다음 중 하나를 실행하세요:"
-            echo -e "   ${YELLOW}1) source ~/.zshrc${NC}               # 설정 파일 다시 로드"
-            echo -e "   ${YELLOW}2) autoload -U compinit && compinit${NC}  # completion 재초기화"
-            echo -e "   ${YELLOW}3) exec zsh${NC}                      # 새 쉘 세션 시작 (권장)"
+            echo "   Run one of the following:"
+            echo -e "   ${YELLOW}1) source ~/.zshrc${NC}               # Reload configuration file"
+            echo -e "   ${YELLOW}2) autoload -U compinit && compinit${NC}  # Reinitialize completion"
+            echo -e "   ${YELLOW}3) exec zsh${NC}                      # Start new shell session (recommended)"
             ;;
         *)
-            echo -e "   ${CYAN}🐚 쉘 환경: $SHELL${NC}"
+            echo -e "   ${CYAN}🐚 Shell environment: $SHELL${NC}"
             echo ""
-            echo "   다음 중 하나를 실행하세요:"
-            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # Bash 설정 로드"
-            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # completion 직접 로드"
-            echo -e "   ${YELLOW}3) exec \$SHELL${NC}                  # 새 쉘 세션 시작 (권장)"
+            echo "   Run one of the following:"
+            echo -e "   ${YELLOW}1) source ~/.bashrc${NC}              # Load Bash configuration"
+            echo -e "   ${YELLOW}2) source /etc/bash_completion${NC}   # Load completion directly"
+            echo -e "   ${YELLOW}3) exec \$SHELL${NC}                  # Start new shell session (recommended)"
             ;;
     esac
     echo ""
-    echo -e "   ${DIM}💡 명령어를 복사해서 터미널에 붙여넣으세요${NC}"
+    printf "   ${DIM}$(msg MSG_INSTALL_COMPLETION_COPY_TIP)${NC}\n"
 }
 
 # 자동완성 즉시 사용을 위한 선택권 제공
 offer_immediate_completion_setup() {
     echo ""
-    log_info "🚀 자동완성을 바로 사용하려면:"
+    log_info "$(msg MSG_INSTALL_COMPLETION_IMMEDIATE)"
     
     # Docker/컨테이너 환경 감지
     local is_container=false
@@ -687,20 +687,20 @@ offer_immediate_completion_setup() {
     
     # 컨테이너 환경일 때만 추가 메시지 출력
     if [ "$is_container" = true ]; then
-        echo -e "   ${YELLOW}📦 컨테이너 환경이 감지되었습니다${NC}"
+        printf "   ${YELLOW}$(msg MSG_INSTALL_CONTAINER_ENV_DETECTED)${NC}\n"
     fi
     
     # 쉘별 맞춤 명령어 안내 (항상 실행)
     show_shell_specific_completion_commands
     
     echo ""
-    log_info "📖 tarsync 명령어 사용법:"
-    echo "      tarsync help                    # 도움말"
-    echo "      tarsync version                 # 버전 확인"
-    echo "      tarsync backup /home/user       # 백업"
-    echo "      tarsync list                    # 목록"
+    msg "MSG_INSTALL_USAGE_EXAMPLES"
+    msg "MSG_INSTALL_USAGE_HELP"
+    msg "MSG_INSTALL_USAGE_VERSION"
+    msg "MSG_INSTALL_USAGE_BACKUP"
+    msg "MSG_INSTALL_USAGE_LIST"
     echo ""
-    log_success "💡 탭 키를 눌러서 자동완성 기능을 사용해보세요!"
+    success_msg "MSG_INSTALL_COMPLETION_TIP"
 }
 
 confirm_installation() {
@@ -718,11 +718,11 @@ confirm_installation() {
 # bash-completion 설치 및 활성화
 # Install and enable bash-completion
 setup_bash_completion() {
-    log_info "bash-completion 시스템 설정 중..."
+    msg "MSG_INSTALL_BASH_COMPLETION_SETUP"
     
     # bash-completion 패키지 설치 여부 확인
     if ! dpkg -l | grep -q "bash-completion"; then
-        log_info "bash-completion 패키지를 설치합니다..."
+        msg "MSG_INSTALL_BASH_COMPLETION_INSTALLING"
         
         # OS 감지해서 적절한 설치 명령어 사용
         local os_type=$(detect_os)
@@ -747,22 +747,22 @@ setup_bash_completion() {
         esac
         
         if dpkg -l | grep -q "bash-completion"; then
-            log_success "✅ bash-completion 패키지가 설치되었습니다"
+            success_msg "MSG_INSTALL_BASH_COMPLETION_SUCCESS"
         else
-            log_error "❌ bash-completion 패키지 설치에 실패했습니다"
+            error_msg "MSG_INSTALL_BASH_COMPLETION_FAILED"
             return 1
         fi
     else
-        log_info "bash-completion 패키지가 이미 설치되어 있습니다"
+        msg "MSG_INSTALL_BASH_COMPLETION_INSTALLED"
     fi
     
     # /etc/bash.bashrc에서 bash completion 활성화
     if [ -f "/etc/bash.bashrc" ]; then
         # 이미 활성화되어 있는지 확인
         if grep -q "^if ! shopt -oq posix; then" /etc/bash.bashrc; then
-            log_info "bash completion이 이미 활성화되어 있습니다"
+            msg "MSG_INSTALL_BASH_COMPLETION_ACTIVE"
         else
-            log_info "bash completion을 활성화합니다..."
+            msg "MSG_INSTALL_BASH_COMPLETION_ACTIVATING"
             
             # 전체 bash completion 블록 활성화 (주석 제거)
             sed -i 's/^#if ! shopt -oq posix; then/if ! shopt -oq posix; then/' /etc/bash.bashrc
@@ -775,44 +775,45 @@ setup_bash_completion() {
             
             # 활성화 확인
             if grep -q "^if ! shopt -oq posix; then" /etc/bash.bashrc; then
-                log_success "✅ bash completion이 활성화되었습니다"
+                success_msg "MSG_INSTALL_BASH_COMPLETION_ACTIVATED"
             else
-                log_error "❌ bash completion 활성화에 실패했습니다"
+                error_msg "MSG_INSTALL_BASH_COMPLETION_ACTIVATE_FAILED"
                 return 1
             fi
         fi
     else
-        log_warn "/etc/bash.bashrc 파일을 찾을 수 없습니다"
+        log_warn "$(msg MSG_INSTALL_BASH_COMPLETION_BASHRC_NOT_FOUND)"
         return 1
     fi
     
-    log_success "bash-completion 시스템 설정이 완료되었습니다"
+    log_success "$(msg MSG_INSTALL_BASH_COMPLETION_COMPLETE)"
 }
 
 # ===== 메인 설치 프로세스 =====
 # ===== Main Installation Process =====
 
 main() {
+    log_info "Initializing installation..."
+    check_minimal_requirements
+    
+    log_info "Checking for existing installation..."
+    if check_dir_exists "$PROJECT_DIR"; then
+        log_info "Existing installation directory found: $PROJECT_DIR"
+    fi
+    
+    log_info "Checking required dependencies..."
+    check_required_tools
+    log_info "All dependencies satisfied"
+    
+    # 언어 선택
+    setup_language
+    
+    # 언어 선택 후 헤더 출력
     echo -e "${CYAN}╔════════════════════════════════════════╗${NC}"
     echo -e "${CYAN}║           $(msg MSG_INSTALL_HEADER_TITLE)            ║${NC}"
     echo -e "${CYAN}║      $(msg MSG_INSTALL_HEADER_SUBTITLE)          ║${NC}"
     echo -e "${CYAN}╚════════════════════════════════════════╝${NC}"
     echo ""
-    
-    log_info "$(msg MSG_INSTALL_INITIALIZING)"
-    check_minimal_requirements
-    
-    log_info "$(msg MSG_INSTALL_CHECKING_EXISTING)"
-    if check_dir_exists "$PROJECT_DIR"; then
-        log_info "기존 설치 디렉토리 발견: $PROJECT_DIR"
-    fi
-    
-    log_info "필수 의존성 확인 중..."
-    check_required_tools
-    log_info "$(msg MSG_INSTALL_ALL_DEPS_OK)"
-    
-    # 언어 선택
-    setup_language
     
     # 최종 확인
     confirm_installation
@@ -824,7 +825,7 @@ main() {
     
     # 기존 설치 제거
     if check_dir_exists "$PROJECT_DIR"; then
-        log_info "기존 설치 제거 중..."
+        log_info "$(msg MSG_INSTALL_REMOVING_EXISTING)"
         rm -rf "$PROJECT_DIR"
     fi
     

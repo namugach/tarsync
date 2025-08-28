@@ -1,9 +1,9 @@
 #!/bin/zsh
 
-# ===== Tarsync ZSH 자동완성 =====
+# ===== Tarsync ZSH Completion =====
 # ===== Tarsync ZSH Completion =====
 
-# ZSH 자동완성 함수
+# ZSH completion function
 # ZSH completion function
 _tarsync() {
     local context state line
@@ -22,8 +22,8 @@ _tarsync() {
                     # backup 명령어: 디렉토리 자동완성
                     # backup command: directory completion
                     _arguments \
-                        '(-v --verbose)'{-v,--verbose}'[상세 출력]' \
-                        '(-q --quiet)'{-q,--quiet}'[조용한 모드]' \
+                        '(-v --verbose)'{-v,--verbose}'[verbose output]' \
+                        '(-q --quiet)'{-q,--quiet}'[quiet mode]' \
                         '(-f --force)'{-f,--force}'[강제 실행]' \
                         '*:directory:_directories'
                     ;;
@@ -43,8 +43,8 @@ _tarsync() {
                     
                     _arguments \
                         '(-s --simulate)'{-s,--simulate}'[시뮬레이션 모드]' \
-                        '(-v --verbose)'{-v,--verbose}'[상세 출력]' \
-                        '(-q --quiet)'{-q,--quiet}'[조용한 모드]' \
+                        '(-v --verbose)'{-v,--verbose}'[verbose output]' \
+                        '(-q --quiet)'{-q,--quiet}'[quiet mode]' \
                         '(-f --force)'{-f,--force}'[강제 실행]' \
                         "*:backup files:(${backup_files[*]})"
                     ;;
@@ -54,7 +54,7 @@ _tarsync() {
                     _arguments \
                         '(-p --page)'{-p,--page}'[페이지 번호]:page number:(1 2 3 4 5)' \
                         '--select[백업 선택]:backup id:(1 2 3 4 5 6 7 8 9 10)' \
-                        '(-v --verbose)'{-v,--verbose}'[상세 출력]'
+                        '(-v --verbose)'{-v,--verbose}'[verbose output]'
                     ;;
                 log|delete|details)
                     # log, delete, details 명령어: 백업 이름 자동완성

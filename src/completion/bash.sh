@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ===== Tarsync Bash 자동완성 =====
+# ===== Tarsync Bash Completion =====
 # ===== Tarsync Bash Completion =====
 
 # Bash 자동완성 함수

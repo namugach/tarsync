@@ -426,3 +426,63 @@ MSG_RESTORE_HISTORY_UPDATED="📊 Restore history updated: %s"
 MSG_RESTORE_FULL_SYNC_WARNING="🔥 Running in full sync mode. (Files not in backup will be deleted, but excluded paths are protected)"
 MSG_RESTORE_SYNC_START="🔄 Starting file synchronization..."
 MSG_RESTORE_SYNC_COMPLETE="📊 Processing complete: %s files synchronized, size: %s, efficiency: %sx"
+
+# ======================
+# Additional Install Messages
+# ======================
+
+MSG_INSTALL_BASH_COMPLETION_SETUP="Setting up bash-completion system..."
+MSG_INSTALL_BASH_COMPLETION_INSTALLED="bash-completion package already installed"
+MSG_INSTALL_BASH_COMPLETION_ACTIVE="bash completion already activated"
+MSG_INSTALL_BASH_COMPLETION_COMPLETE="bash-completion system setup completed"
+MSG_INSTALL_COMPLETION_TITLE="🚀 To use auto-completion immediately:"
+MSG_INSTALL_CONTAINER_ENV_DETECTED="📦 Container environment detected"
+MSG_INSTALL_BASH_ENV_DETECTED="🐚 Bash environment detected"
+MSG_INSTALL_ZSH_ENV_DETECTED="🐚 ZSH environment detected"
+MSG_INSTALL_SHELL_ENV="🐚 Shell environment: %s"
+MSG_INSTALL_COMPLETION_CHOOSE_ONE="Choose one of the following:"
+MSG_INSTALL_COMPLETION_RELOAD_BASHRC="1) source ~/.bashrc              # Reload configuration file"
+MSG_INSTALL_COMPLETION_LOAD_DIRECT="2) source /etc/bash_completion   # Load completion directly"  
+MSG_INSTALL_COMPLETION_NEW_SESSION="3) exec bash                     # Start new shell session (recommended)"
+MSG_INSTALL_COMPLETION_RELOAD_ZSHRC="1) source ~/.zshrc               # Reload configuration file"
+MSG_INSTALL_COMPLETION_REINIT_ZSH="2) autoload -U compinit && compinit  # Re-initialize completion"
+MSG_INSTALL_COMPLETION_NEW_ZSH="3) exec zsh                      # Start new shell session (recommended)"
+MSG_INSTALL_COMPLETION_COPY_TIP="💡 Copy and paste the command into your terminal"
+MSG_INSTALL_COMPLETION_TIP="💡 Press Tab to use auto-completion!"
+MSG_INSTALL_USAGE_EXAMPLES="📖 tarsync command usage:"
+MSG_INSTALL_USAGE_HELP="      tarsync help                    # Show help"
+MSG_INSTALL_USAGE_VERSION="      tarsync version                 # Check version"  
+MSG_INSTALL_USAGE_BACKUP="      tarsync backup /home/user       # Backup directory"
+MSG_INSTALL_USAGE_LIST="      tarsync list                    # List backups"
+
+# ======================  
+# List Module Messages
+# ======================
+
+MSG_LIST_LOADING="📋 Loading backup list..."
+MSG_LIST_NO_BACKUPS="⚠️  No backup files found."
+MSG_LIST_BACKUP_NOT_FOUND_IDENTIFIER="❌ Backup number %s not found."
+MSG_LIST_BACKUP_NOT_EXISTS="❌ Backup does not exist: %s"
+MSG_LIST_LOG_USAGE="Usage: tarsync log <number|backup_name>"
+MSG_LIST_SPECIFY_BACKUP="❌ Please specify backup number or name."
+MSG_LIST_DELETE_CONFIRM="🗑️  Backup deletion confirmation"
+MSG_LIST_DELETE_PROMPT="Do you really want to delete this backup? [y/N]: "
+MSG_LIST_DELETE_SPECIFY="❌ Please specify the backup name to delete."
+
+# ======================
+# Common module messages  
+# ======================
+
+MSG_COMMON_COMMAND_FAILED="❌ Command execution failed: %s"
+MSG_COMMON_STORE_DIR_CREATING="📁 Creating backup storage: %s"
+MSG_COMMON_BACKUP_SIZE_RECORDED="📦 Backup file size recorded in metadata: %s"
+MSG_COMMON_METADATA_NOT_FOUND="❌ Metadata file not found: %s"
+MSG_COMMON_SIZE_CALCULATING="📊 Calculating backup size..."
+MSG_COMMON_EXCLUDE_PATH_SIZE="  Excluded path '%s': %s"
+MSG_COMMON_EXCLUDE_PATH_DIFFERENT_FS="  Excluded path '%s': different filesystem or does not exist"
+MSG_COMMON_TOTAL_SIZE="  Total size: %s"
+MSG_COMMON_FINAL_BACKUP_SIZE="  Final backup size: %s"
+MSG_COMMON_PROGRESS_START="🚀 %s starting..."
+MSG_COMMON_PROGRESS_COMMAND="   Command: %s"
+MSG_COMMON_PROGRESS_COMPLETE="✅ %s completed!"
+MSG_COMMON_PROGRESS_FAILED="❌ %s failed!"

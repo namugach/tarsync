@@ -30,16 +30,16 @@ export SUCCESS WARNING ERROR INFO HIGHLIGHT TITLE SUBTITLE
 
 # 색상 테스트 함수 (디버깅용)
 test_colors() {
-    echo -e "${RED}RED 색상 테스트${NC}"
-    echo -e "${GREEN}GREEN 색상 테스트${NC}"
-    echo -e "${YELLOW}YELLOW 색상 테스트${NC}"
-    echo -e "${BLUE}BLUE 색상 테스트${NC}"
-    echo -e "${PURPLE}PURPLE 색상 테스트${NC}"
-    echo -e "${CYAN}CYAN 색상 테스트${NC}"
-    echo -e "${WHITE}WHITE 색상 테스트${NC}"
-    echo -e "${GRAY}GRAY 색상 테스트${NC}"
-    echo -e "${BOLD}BOLD 텍스트 테스트${NC}"
-    echo -e "${DIM}DIM 텍스트 테스트${NC}"
+    echo -e "${RED}RED color test${NC}"
+    echo -e "${GREEN}GREEN color test${NC}"
+    echo -e "${YELLOW}YELLOW color test${NC}"
+    echo -e "${BLUE}BLUE color test${NC}"
+    echo -e "${PURPLE}PURPLE color test${NC}"
+    echo -e "${CYAN}CYAN color test${NC}"
+    echo -e "${WHITE}WHITE color test${NC}"
+    echo -e "${GRAY}GRAY color test${NC}"
+    echo -e "${BOLD}BOLD text test${NC}"
+    echo -e "${DIM}DIM text test${NC}"
 }
 
 # 색상 비활성화 함수 (파이프 출력 등에서 사용)

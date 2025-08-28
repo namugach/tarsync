@@ -140,8 +140,8 @@ show_backup_log() {
     local backup_identifier="$1"
     
     if [[ -z "$backup_identifier" ]]; then
-        echo "❌ 백업 번호 또는 이름을 지정해주세요." >&2
-        echo "사용법: tarsync log <번호|백업이름>" >&2
+        msg "MSG_LIST_LOG_BACKUP_NAME_REQUIRED" >&2
+        msg "MSG_LIST_LOG_USAGE" >&2
         return 1
     fi
     
@@ -150,7 +150,7 @@ show_backup_log() {
     backup_name=$(get_backup_name_by_number_for_log "$backup_identifier")
     
     if [[ -z "$backup_name" ]]; then
-        echo "❌ 백업 번호 $backup_identifier 에 해당하는 백업을 찾을 수 없습니다." >&2
+        msg "MSG_LIST_BACKUP_NOT_FOUND_IDENTIFIER" "$backup_identifier" >&2
         return 1
     fi
     
@@ -159,7 +159,7 @@ show_backup_log() {
     local backup_dir="$store_dir/$backup_name"
     
     if [[ ! -d "$backup_dir" ]]; then
-        echo "❌ 백업이 존재하지 않습니다: $backup_name" >&2
+        msg "MSG_LIST_LOG_NOT_EXISTS" "$backup_name" >&2
         return 1
     fi
     
@@ -249,14 +249,14 @@ print_backups() {
     local page_num=${2:-1}      # 기본 1페이지
     local select_list=${3:-0}   # 선택된 항목 (1부터 시작, 음수면 뒤에서부터)
     
-    echo "📋 백업 목록 조회 중..."
+    msg "MSG_LIST_LOADING"
     echo ""
     
     # 백업 파일 목록 가져오기
     local files_raw
     files_raw=$(get_backup_files)
     if [[ $? -ne 0 ]] || [[ -z "$files_raw" ]]; then
-        echo "⚠️  백업 파일이 없습니다."
+        msg "MSG_LIST_NO_BACKUPS"
         return 1
     fi
     
@@ -286,8 +286,8 @@ print_backups() {
     # 현재 페이지의 시작 인덱스 계산 (표시용)
     local display_start_index=$((start_index + 1))
     
-    result+="📦 tarsync 백업 목록"$'\n'
-    result+="===================="$'\n'
+    result+="$(msg "MSG_LIST_HEADER")"$'\n'
+    result+="$(msg "MSG_LIST_DIVIDER")"$'\n'
     
     # 현재 페이지의 파일 목록 순회
     for ((i = 0; i < items_count; i++)); do
@@ -349,9 +349,9 @@ print_backups() {
     local page_total_size_human
     page_total_size_human=$(convert_size "$total_size")
     
-    result+="🔳 전체 저장소: ${store_total_size}B"$'\n'
-    result+="🔳 페이지 총합: $page_total_size_human"$'\n'
-    result+="🔳 페이지 $current_page / $total_pages (총 $files_length 개 백업)"$'\n'
+    result+="$(msg "MSG_LIST_STORAGE_TOTAL" "${store_total_size}")"$'\n'
+    result+="$(msg "MSG_LIST_PAGE_TOTAL" "$page_total_size_human")"$'\n'
+    result+="$(msg "MSG_LIST_PAGE_INFO" "$current_page" "$total_pages" "$files_length")"$'\n'
     
     # 결과 출력
     echo "$result"
@@ -365,39 +365,39 @@ delete_backup() {
     local backup_dir="$store_dir/$backup_name"
     
     if [[ -z "$backup_name" ]]; then
-        echo "❌ 삭제할 백업 이름을 지정해주세요." >&2
+        msg "MSG_LIST_DELETE_NAME_REQUIRED" >&2
         return 1
     fi
     
     if ! is_path_exists "$backup_dir"; then
-        echo "❌ 백업이 존재하지 않습니다: $backup_name" >&2
+        msg "MSG_LIST_DELETE_NOT_EXISTS" "$backup_name" >&2
         return 1
     fi
     
-    echo "🗑️  백업 삭제 확인"
-    echo "   대상: $backup_name"
-    echo "   경로: $backup_dir"
+    msg "MSG_LIST_DELETE_CONFIRM"
+    msg "MSG_LIST_DELETE_TARGET" "$backup_name"
+    msg "MSG_LIST_DELETE_PATH" "$backup_dir"
     
     # 백업 크기 표시
     local backup_size
     backup_size=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
-    echo "   크기: $backup_size"
+    msg "MSG_LIST_DELETE_SIZE" "$backup_size"
     
     echo ""
-    echo -n "정말로 이 백업을 삭제하시겠습니까? [y/N]: "
+    printf "$(msg "MSG_LIST_DELETE_PROMPT")"
     read -r confirmation
     
     if [[ "$confirmation" =~ ^[Yy]$ ]]; then
-        echo "🗑️  백업 삭제 중..."
+        msg "MSG_LIST_DELETE_PROCESSING"
         if rm -rf "$backup_dir"; then
-            echo "✅ 백업이 성공적으로 삭제되었습니다: $backup_name"
+            msg "MSG_LIST_DELETE_SUCCESS" "$backup_name"
             return 0
         else
-            echo "❌ 백업 삭제 중 오류가 발생했습니다." >&2
+            msg "MSG_LIST_DELETE_ERROR" >&2
             return 1
         fi
     else
-        echo "❌ 백업 삭제가 취소되었습니다."
+        msg "MSG_LIST_DELETE_CANCELLED"
         return 1
     fi
 }
@@ -410,45 +410,45 @@ show_backup_details() {
     local backup_dir="$store_dir/$backup_name"
     
     if [[ -z "$backup_name" ]]; then
-        echo "❌ 조회할 백업 이름을 지정해주세요." >&2
+        msg "MSG_LIST_DETAILS_NAME_REQUIRED" >&2
         return 1
     fi
     
     if ! is_path_exists "$backup_dir"; then
-        echo "❌ 백업이 존재하지 않습니다: $backup_name" >&2
+        msg "MSG_LIST_DETAILS_NOT_EXISTS" "$backup_name" >&2
         return 1
     fi
     
-    echo "📋 백업 상세 정보"
-    echo "=================="
-    echo "📂 백업 이름: $backup_name"
-    echo "📁 백업 경로: $backup_dir"
+    msg "MSG_LIST_DETAILS_HEADER"
+    msg "MSG_LIST_DETAILS_DIVIDER"
+    msg "MSG_LIST_DETAILS_NAME" "$backup_name"
+    msg "MSG_LIST_DETAILS_PATH" "$backup_dir"
     
     # 백업 크기
     local backup_size
     backup_size=$(du -sh "$backup_dir" 2>/dev/null | awk '{print $1}')
-    echo "📦 백업 크기: $backup_size"
+    msg "MSG_LIST_DETAILS_SIZE" "$backup_size"
     
     # 파일 상태 체크
     local integrity_status
     integrity_status=$(check_backup_integrity "$backup_dir")
-    echo "🔍 백업 상태: $integrity_status"
+    msg "MSG_LIST_DETAILS_STATUS" "$integrity_status"
     
     # 메타데이터 정보
     local meta_file="$backup_dir/meta.sh"
     if [[ -f "$meta_file" ]]; then
         echo ""
-        echo "📄 메타데이터 정보:"
+        msg "MSG_LIST_DETAILS_META_HEADER"
         if load_metadata "$backup_dir"; then
-            echo "   원본 크기: $(convert_size "$META_SIZE")"
-            echo "   생성 날짜: $META_CREATED"
-            echo "   제외 경로: ${#META_EXCLUDE[@]}개"
+            msg "MSG_LIST_DETAILS_META_SOURCE_SIZE" "$(convert_size "$META_SIZE")"
+            msg "MSG_LIST_DETAILS_META_CREATED" "$META_CREATED"
+            msg "MSG_LIST_DETAILS_META_EXCLUDES" "${#META_EXCLUDE[@]}"
         fi
     fi
     
     # 파일 목록
     echo ""
-    echo "📁 포함된 파일:"
+    msg "MSG_LIST_DETAILS_FILES_HEADER"
     find "$backup_dir" -type f -exec basename {} \; | sort
     
     # 로그 파일 내용
@@ -479,26 +479,26 @@ main() {
             show_backup_log "$backup_identifier"
             ;;
         "help"|"-h"|"--help")
-            echo "tarsync 백업 목록 관리"
+            msg "MSG_LIST_HELP_TITLE"
             echo ""
-            echo "사용법:"
-            echo "  $0 list [페이지크기] [페이지번호]             # 백업 목록 표시"
-            echo "  $0 log <번호|백업이름>                      # 백업 메모와 로그 표시"
-            echo "  $0 delete <백업이름>                        # 백업 삭제"
-            echo "  $0 details <백업이름>                       # 백업 상세 정보"
-            echo "  $0 help                                    # 도움말 표시"
+            msg "MSG_LIST_HELP_USAGE"
+            msg "MSG_LIST_HELP_LIST_CMD" "$0"
+            msg "MSG_LIST_HELP_LOG_CMD" "$0"
+            msg "MSG_LIST_HELP_DELETE_CMD" "$0"
+            msg "MSG_LIST_HELP_DETAILS_CMD" "$0"
+            msg "MSG_LIST_HELP_HELP_CMD" "$0"
             echo ""
-            echo "예시:"
-            echo "  $0 list                                   # 전체 목록 표시"
-            echo "  $0 list 5                                 # 5개씩 표시"
-            echo "  $0 log 7                                  # 7번 백업의 메모와 로그 표시"
-            echo "  $0 log 2025_08_02_PM_04_16_40            # 특정 백업의 메모와 로그 표시"
-            echo "  $0 delete 2025_06_27_오후_02_28_59         # 특정 백업 삭제"
-            echo "  $0 details 2025_06_27_오후_02_28_59        # 백업 상세 정보"
+            msg "MSG_LIST_HELP_EXAMPLES"
+            msg "MSG_LIST_HELP_EXAMPLE_LIST" "$0"
+            msg "MSG_LIST_HELP_EXAMPLE_LIST_SIZE" "$0"
+            msg "MSG_LIST_HELP_EXAMPLE_LOG_NUM" "$0"
+            msg "MSG_LIST_HELP_EXAMPLE_LOG_NAME" "$0"
+            msg "MSG_LIST_HELP_EXAMPLE_DELETE" "$0"
+            msg "MSG_LIST_HELP_EXAMPLE_DETAILS" "$0"
             ;;
         *)
-            echo "❌ 알 수 없는 명령어: $command" >&2
-            echo "도움말을 보려면: $0 help" >&2
+            msg "MSG_LIST_UNKNOWN_COMMAND" "$command" >&2
+            msg "MSG_LIST_HELP_HINT" "$0" >&2
             return 1
             ;;
     esac

@@ -153,7 +153,7 @@ select_backup() {
     if [[ -z "$backup_name" ]]; then
         show_backup_list
         echo "" >&2
-        echo -n "복구할 백업을 선택하세요 (번호 또는 디렉토리 이름): " >&2
+        printf "$(msg "MSG_RESTORE_SELECT_BACKUP")" >&2
         read -r backup_name
     fi
     
@@ -161,7 +161,7 @@ select_backup() {
     actual_backup_name=$(get_backup_name_by_number "$backup_name")
     
     if [[ -z "$actual_backup_name" ]]; then
-        echo "❌ 백업 번호 $backup_name 에 해당하는 백업을 찾을 수 없습니다." >&2
+        msg "MSG_RESTORE_BACKUP_NOT_FOUND" "$backup_name" >&2
         return 1
     fi
     
@@ -170,7 +170,7 @@ select_backup() {
     local backup_dir="$store_dir/$actual_backup_name"
     
     if ! is_path_exists "$backup_dir" || ! is_file "$backup_dir/tarsync.tar.gz" || ! is_file "$backup_dir/meta.sh"; then
-        echo "❌ 선택된 백업이 유효하지 않거나 필수 파일이 없습니다: $actual_backup_name" >&2
+        msg "MSG_RESTORE_INVALID_BACKUP" "$actual_backup_name" >&2
         return 1
     fi
     
@@ -205,10 +205,10 @@ get_exclude_paths_from_log() {
             fi
         done < <(jq -r '.details.exclude_paths[]?' "$log_file" 2>/dev/null)
         
-        echo "📋 log.json에서 ${#exclude_paths_ref[@]}개의 제외 경로를 로드했습니다."
+        echo "📋 Loaded ${#exclude_paths_ref[@]} exclude paths from log.json."
         return 0
     else
-        echo "⚠️ log.json을 찾을 수 없습니다. 메타데이터의 제외 경로를 사용합니다."
+        echo "⚠️ Could not find log.json. Using metadata exclude paths."
         return 1
     fi
 }
@@ -240,7 +240,7 @@ validate_restore_target() {
     parent_dir=$(dirname "$target_path")
     
     if ! is_path_exists "$parent_dir" || ! is_writable "$parent_dir"; then
-        echo "❌ 복구 대상 경로가 유효하지 않거나 쓰기 권한이 없습니다: $target_path" >&2
+        msg "MSG_RESTORE_INVALID_TARGET" "$target_path" >&2
         return 1
     fi
     
@@ -253,21 +253,21 @@ confirm_restore() {
     local target_path="$2"
 
     echo ""
-    echo "⚙️  복구 방식을 선택하세요"
+    msg "MSG_RESTORE_MODE_SELECT"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  - 📦 백업: $backup_name"
-    echo "  - 🎯 대상: $target_path"
+    msg "MSG_RESTORE_BACKUP_INFO" "$backup_name"
+    echo "  - 🎯 Target: $target_path"
     echo ""
-    echo "1️⃣  안전 복구 (기본값)"
-    echo "    기존 파일은 그대로 두고, 백업된 내용만 추가하거나 덮어씁니다."
-    echo "    (일반적인 복구에 권장됩니다.)"
+    msg "MSG_RESTORE_MODE_SAFE"
+    msg "MSG_RESTORE_MODE_SAFE_DESC"
+    msg "MSG_RESTORE_MODE_SAFE_RECOMMEND"
     echo ""
-    echo "2️⃣  완전 동기화 (⚠️ 주의: 파일 삭제)"
-    echo "    백업 시점과 완전히 동일한 상태로 만듭니다."
-    echo "    대상 폴더에만 존재하는 파일이나 디렉토리는 **삭제**됩니다."
+    msg "MSG_RESTORE_MODE_FULL"
+    msg "MSG_RESTORE_MODE_FULL_DESC"
+    echo "    Files or directories that only exist in target folder will be **deleted**."
     echo ""
-    echo "3️⃣  취소"
-    echo "    복구 작업을 중단합니다."
+    msg "MSG_RESTORE_MODE_CANCEL"
+    msg "MSG_RESTORE_MODE_CANCEL_DESC"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     
     local choice
@@ -278,7 +278,7 @@ confirm_restore() {
             1) return 0 ;; # 안전 복구
             2) return 2 ;; # 완전 동기화
             3) return 1 ;; # 취소
-            *) echo "❌ 잘못된 선택입니다. 1, 2, 3 중에서 선택하세요." ;;
+            *) msg "MSG_RESTORE_INVALID_CHOICE" ;;
         esac
     done
 }
@@ -289,19 +289,19 @@ extract_backup() {
     local extract_dir="$2"
     local tar_file="$backup_dir/tarsync.tar.gz"
     
-    echo "📦 백업 파일 압축 해제 중..."
-    echo "   - 원본: $tar_file"
-    echo "   - 대상: $extract_dir"
-    echo "   - 파일 크기: $(get_path_size_formatted "$tar_file")"
+    msg "MSG_RESTORE_EXTRACTING"
+    echo "   - Source: $tar_file"
+    echo "   - Target: $extract_dir"
+    echo "   - File size: $(get_path_size_formatted "$tar_file")"
     echo ""
     
     # pv를 사용한 진행률 표시와 함께 압축 해제
     if ! pv "$tar_file" | tar -xz -C "$extract_dir" --strip-components=0 --preserve-permissions; then
-        echo "❌ 압축 해제에 실패했습니다."
+        msg "MSG_RESTORE_EXTRACT_FAILED"
         return 1
     fi
     
-    echo "✅ 압축 해제 완료."
+    msg "MSG_RESTORE_EXTRACT_COMPLETE"
     return 0
 }
 
@@ -369,7 +369,7 @@ create_restore_log() {
             }
         }' > "$log_file"
     
-    echo "📜 복구 로그가 저장되었습니다: $log_file"
+    msg "MSG_RESTORE_LOG_SAVED" "$log_file"
 }
 
 # restore_summary.json 업데이트 함수
@@ -452,7 +452,7 @@ update_restore_summary() {
     
     mv "$summary_file.tmp" "$summary_file"
     
-    echo "📊 복구 이력이 업데이트되었습니다: $summary_file"
+    msg "MSG_RESTORE_HISTORY_UPDATED" "$summary_file"
 }
 
 # rsync 동기화 실행
@@ -474,22 +474,22 @@ execute_rsync() {
             for exclude_path in "${protect_paths_ref[@]}"; do
                 protect_filters+=("--filter=protect $exclude_path")
             done
-            echo "🛡️  완전 동기화 모드: ${#protect_paths_ref[@]}개 경로 삭제 보호"
+            # 완전 동기화 모드 보호 메시지 (번역 상수 추가 필요)
         fi
         
-        echo "🔥 완전 동기화 모드로 실행합니다. (백업에 없는 파일은 삭제되지만 제외 경로는 보호됩니다)"
+        msg "MSG_RESTORE_FULL_SYNC_WARNING"
     fi
     
     echo ""
-    echo "🔄 파일 동기화 시작..."
-    echo "   📂 원본: $source_dir/"
-    echo "   🎯 대상: $target_dir/"
-    echo "   🚫 제외: ${#exclude_array_ref[@]}개 경로"
+    msg "MSG_RESTORE_SYNC_START"
+    echo "   📂 Source: $source_dir/"
+    echo "   🎯 Target: $target_dir/"
+    echo "   🚫 Exclude: ${#exclude_array_ref[@]} paths"
     
     # 동기화할 파일 수 계산 (시간 제한으로 빠른 응답)
     local file_count
-    file_count=$(timeout 5s find "$source_dir" -type f 2>/dev/null | wc -l || echo "많은 파일")
-    echo "   📊 대상: 약 $file_count개 파일"
+    file_count=$(timeout 5s find "$source_dir" -type f 2>/dev/null | wc -l || echo "many files")
+    echo "   📊 Target: approximately $file_count files"
     echo ""
     
     # rsync 실행 및 결과 캐치
@@ -497,12 +497,12 @@ execute_rsync() {
     local rsync_exit_code
     local temp_log="/tmp/tarsync_rsync_$$.log"
     
-    echo "⏳ 동기화 진행 중..."
+    echo "⏳ Synchronization in progress..."
     
     # pv를 사용한 진행률 표시가 가능한지 확인
     if command -v pv >/dev/null 2>&1 && [[ "$file_count" =~ ^[0-9]+$ ]] && [[ "$file_count" -gt 100 ]]; then
         # 파일이 많은 경우 pv를 통한 진행률 시뮬레이션
-        echo "📊 $file_count개 파일 처리 중..."
+        echo "📊 Processing $file_count files..."
         
         # rsync를 백그라운드에서 실행하고 진행률 표시
         rsync $rsync_options "${exclude_array_ref[@]}" "${protect_filters[@]}" "$source_dir/" "$target_dir/" >"$temp_log" 2>&1 &
@@ -511,11 +511,11 @@ execute_rsync() {
         # 간단한 진행률 표시
         local progress=0
         while kill -0 "$rsync_pid" 2>/dev/null; do
-            printf "\r🔄 진행률: %d%%" "$progress"
+            printf "\r🔄 Progress: %d%%" "$progress"
             progress=$(( (progress + 10) % 100 ))
             sleep 2
         done
-        printf "\r✅ 동기화 처리 완료!      \n"
+        printf "\r✅ Synchronization complete!      \n"
         
         # rsync 종료 코드 확인
         wait "$rsync_pid"
@@ -540,34 +540,34 @@ execute_rsync() {
         local speedup=$(echo "$rsync_output" | grep -oP "speedup is \K[^\s]+" 2>/dev/null || echo "1.0")
         
         if [[ "$transferred_files" != "0" ]]; then
-            echo "📊 처리 완료: ${transferred_files}개 파일 동기화, 크기: ${total_size}, 효율: ${speedup}x"
+            msg "MSG_RESTORE_SYNC_COMPLETE" "${transferred_files}" "${total_size}" "${speedup}"
         else
-            echo "📊 처리 완료: 모든 파일이 이미 최신 상태입니다."
+            # 파일이 이미 최신 상태일 때 메시지 (번역 상수 추가 필요)
         fi
     fi
     
     # 결과 처리 및 에러 분석
     if [[ $rsync_exit_code -eq 0 ]]; then
-        echo "✅ 동기화 완료."
+        # 동기화 완료 메시지 (번역 상수 추가 필요)
         return 0
     elif [[ $rsync_exit_code -eq 23 ]]; then
-        echo "⚠️  일부 파일 처리 제한이 있었지만 주요 동기화는 성공했습니다."
+        echo "⚠️  Some file processing limitations occurred, but main synchronization was successful."
         
         # 보호된 파일 개수 계산
         local protected_count=$(echo "$rsync_output" | grep -c "Read-only file system\|Operation not permitted\|failed:" 2>/dev/null || echo "0")
         if [[ "$protected_count" -gt "0" ]]; then
-            echo "   💡 ${protected_count}개 파일이 시스템 보호로 변경되지 않았습니다. (정상)"
+            echo "   💡 ${protected_count} files were not modified due to system protection. (normal)"
         fi
-        echo "   🛡️  SSH 키, 시스템 파일 등 중요 파일들이 보호되었습니다."
+        echo "   🛡️  Important files like SSH keys and system files were protected."
         return 0
     else
-        echo "❌ 파일 동기화에 실패했습니다. (종료 코드: $rsync_exit_code)"
+        # 동기화 실패 메시지 (번역 상수 추가 필요)
         
         # 주요 에러만 요약해서 표시
         if [[ -n "$rsync_output" ]]; then
             local error_lines=$(echo "$rsync_output" | grep -E "(failed|error|Error|Permission denied)" | head -3)
             if [[ -n "$error_lines" ]]; then
-                echo "📋 주요 오류:"
+                echo "📋 Main errors:"
                 echo "$error_lines" | sed 's/^/   /'
             fi
         fi
@@ -580,7 +580,7 @@ restore() {
     local backup_name="$1"
     local target_path="$2"
 
-    echo "🔄 tarsync 복구를 시작합니다."
+    echo "🔄 Starting tarsync restore."
     echo ""
 
     # 복구 작업 시작 시간 기록
@@ -592,13 +592,13 @@ restore() {
     echo ""
 
     # 2. 백업 선택
-    echo "🔍 백업 선택 중..."
+    echo "🔍 Selecting backup..."
     backup_name=$(select_backup "$backup_name")
     if [[ -z "$backup_name" ]]; then
-        echo "❌ 복구를 중단합니다."
+        echo "❌ Restoration cancelled."
         exit 1
     fi
-    echo "✅ 백업 선택됨: $backup_name"
+    echo "✅ Backup selected: $backup_name"
     echo ""
 
     local store_dir
@@ -606,22 +606,22 @@ restore() {
     local backup_dir="$store_dir/$backup_name"
 
     # 3. 복구 대상 경로 확인
-    echo "🔍 복구 대상 확인 중..."
+    echo "🔍 Checking restore target..."
     target_path=$(validate_restore_target "$target_path" "$backup_dir")
     if [[ -z "$target_path" ]]; then
-        echo "❌ 복구를 중단합니다."
+        echo "❌ Restoration cancelled."
         exit 1
     fi
-    echo "✅ 복구 대상: $target_path"
+    echo "✅ Restore target: $target_path"
     echo ""
 
     # 4. 메타데이터 로드
-    echo "📄 메타데이터 로드 중..."
+    echo "📄 Loading metadata..."
     if ! load_metadata "$backup_dir"; then
-        echo "❌ 복구를 중단합니다."
+        echo "❌ Restoration cancelled."
         exit 1
     fi
-    echo "✅ 메타데이터 로드 완료."
+    echo "✅ Metadata loading completed."
     echo ""
 
     # 5. 최종 확인
@@ -630,7 +630,7 @@ restore() {
     confirm_status=$?
 
     if [[ $confirm_status -eq 1 ]]; then # 1: 취소
-        echo "👋 복구를 취소했습니다."
+        echo "👋 Restore cancelled."
         exit 1
     fi
     echo ""
@@ -643,16 +643,16 @@ restore() {
     # 6. 임시 작업 디렉토리 생성
     local work_dir
     work_dir=$(get_restore_work_dir_path "$backup_name")
-    echo "📁 임시 작업 디렉토리 생성 중..."
+    echo "📁 Creating temporary working directory..."
     create_restore_dir
     create_directory "$work_dir"
-    echo "✅ 작업 디렉토리: $work_dir"
+    echo "✅ Working directory: $work_dir"
     echo ""
 
     # 7. 압축 해제
     if ! extract_backup "$backup_dir" "$work_dir"; then
         rm -rf "$work_dir"
-        echo "❌ 복구를 중단합니다."
+        echo "❌ Restoration cancelled."
         exit 1
     fi
     echo ""
@@ -663,12 +663,12 @@ restore() {
     
     # log.json에서 exclude_paths 로드 시도
     if get_exclude_paths_from_log "$backup_dir" log_exclude_paths; then
-        echo "✅ log.json에서 제외 경로를 성공적으로 로드했습니다."
+        echo "✅ Successfully loaded exclude paths from log.json."
         for exclude_path in "${log_exclude_paths[@]}"; do
             exclude_array+=("--exclude=$exclude_path")
         done
     else
-        echo "⚠️ log.json에서 제외 경로를 로드할 수 없습니다. 메타데이터를 사용합니다."
+        echo "⚠️ Cannot load exclude paths from log.json. Using metadata."
         for exclude_path in "${META_EXCLUDE[@]}"; do
             exclude_array+=("--exclude=$exclude_path")
         done
@@ -676,7 +676,7 @@ restore() {
     
     # 시스템 중요 경로 추가 보호
     local critical_paths=("/boot" "/etc/fstab" "/etc/grub*")
-    echo "🛡️ 시스템 중요 경로 추가 보호 중..."
+    echo "🛡️ Adding protection for critical system paths..."
     for critical_path in "${critical_paths[@]}"; do
         exclude_array+=("--exclude=$critical_path")
     done
@@ -694,9 +694,9 @@ restore() {
     
     if ! execute_rsync "$work_dir" "$target_path" exclude_array "$delete_mode" protect_paths; then
         restore_success=false
-        echo "❌ 파일 동기화에 실패했습니다."
+        echo "❌ File synchronization failed."
     else
-        echo "✅ 파일 동기화가 완료되었습니다."
+        echo "✅ File synchronization completed."
     fi
     echo ""
 
@@ -712,7 +712,7 @@ restore() {
     mkdir -p "$backup_restore_dir"
     local permanent_log_file="$backup_restore_dir/$(date +%Y-%m-%d_%H-%M-%S).json"
     cp "$work_dir/restore.json" "$permanent_log_file"
-    echo "📜 복구 로그가 저장되었습니다: $permanent_log_file"
+    echo "📜 Restore log saved: $permanent_log_file"
     
     # restore_summary.md 업데이트
     local log_filename=$(basename "$permanent_log_file")
@@ -722,18 +722,18 @@ restore() {
     # 복구 실패 시 중단 (summary는 이미 업데이트됨)
     if [[ "$restore_success" == "false" ]]; then
         rm -rf "$work_dir"
-        echo "❌ 복구를 중단합니다."
+        echo "❌ Restoration cancelled."
         exit 1
     fi
 
     # 11. 정리
-    echo "🧹 임시 작업 디렉토리 정리..."
+    echo "🧹 Cleaning up temporary working directory..."
     rm -rf "$work_dir"
-    echo "✅ 정리 완료."
+    echo "✅ Cleanup completed."
     echo ""
 
     success_msg "MSG_RESTORE_COMPLETE"
-    echo "   - 복구된 위치: $target_path"
+    echo "   - Restored location: $target_path"
 }
 
 # 스크립트가 직접 실행된 경우
