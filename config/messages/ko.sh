@@ -76,6 +76,7 @@ MSG_BACKUP_PREPARING="백업을 준비하고 있습니다..."
 MSG_BACKUP_FINALIZING="백업을 마무리하고 있습니다..."
 
 # 사용자 메모 편집
+MSG_NOTES_CREATE_PROMPT="📝 이 백업에 사용자 메모를 작성하시겠습니까? (Y/n): "
 MSG_NOTES_EDIT="📝 사용자 메모를 편집합니다..."
 MSG_NOTES_EDIT_INFO="   (빈 파일에 원하는 메모를 작성하세요)"
 MSG_NOTES_EDITOR_VIM="   (저장하고 종료: :wq, 편집 없이 종료: :q)"
@@ -89,6 +90,23 @@ MSG_BACKUP_CREATING_META="백업 메타데이터를 생성하고 있습니다...
 MSG_BACKUP_CREATING_LOG="백업 로그를 생성하고 있습니다..."
 MSG_BACKUP_DISK_SPACE_CHECK="사용 가능한 디스크 공간을 확인하고 있습니다..."
 MSG_BACKUP_EXCLUDE_PATHS="백업에서 %d개 경로를 제외합니다"
+MSG_BACKUP_CANCELLED="⏹️ 사용자가 백업을 취소했습니다"
+MSG_BACKUP_CHECKING_STRUCTURE="🔍 백업 구조를 확인하고 있습니다..."
+MSG_BACKUP_CLEANUP_FAILED="⚠️ 경고: 백업 정리에 실패했습니다"
+MSG_BACKUP_CREATING_WORK_DIR="📁 작업 디렉토리를 생성하고 있습니다..."
+MSG_BACKUP_DIR_CREATE_FAILED="❌ 백업 디렉토리 생성에 실패했습니다"
+MSG_BACKUP_DISK_SPACE_OK="✅ 디스크 공간 확인 통과"
+MSG_BACKUP_LOCATION="📍 백업 위치: %s"
+MSG_BACKUP_LOG_CREATED="📝 백업 로그가 성공적으로 생성되었습니다"
+MSG_BACKUP_META_CREATED="📊 백업 메타데이터가 성공적으로 생성되었습니다"
+MSG_BACKUP_NO_DIRECTORY="❌ 백업을 위한 디렉토리가 지정되지 않았습니다"
+MSG_BACKUP_RECENT_LIST="📋 최근 백업:"
+MSG_BACKUP_STORE_CREATE_FAILED="❌ 백업 저장소 생성에 실패했습니다"
+MSG_BACKUP_STRUCTURE_READY="✅ 백업 구조 준비 완료"
+MSG_BACKUP_TARGET_VALID="✅ 백업 대상이 유효합니다"
+MSG_BACKUP_VALIDATING_TARGET="🔍 백업 대상을 검증하고 있습니다..."
+MSG_BACKUP_WORK_DIR="📁 작업 디렉토리: %s"
+MSG_BACKUP_WORK_DIR_CREATED="📁 작업 디렉토리가 성공적으로 생성되었습니다"
 
 # ======================
 # 복구 모듈 메시지
@@ -370,9 +388,17 @@ MSG_INSTALL_REMOVING_EXISTING="기존 설치 제거 중..."
 
 # 제거 프로세스
 MSG_UNINSTALL_START="tarsync 제거를 시작합니다..."
+MSG_UNINSTALL_HEADER_TITLE="TARSYNC 제거 도구"
+MSG_UNINSTALL_ITEMS_TO_REMOVE="⚠️  다음 항목들이 제거됩니다:"
+MSG_UNINSTALL_CONFIG_DIR="설정 파일: %s"
+MSG_UNINSTALL_USER_CONFIG="사용자 설정: %s"
 MSG_UNINSTALL_CONFIRM="정말로 tarsync를 제거하시겠습니까? (y/N)"
 MSG_UNINSTALL_CANCELLED="제거가 취소되었습니다"
 MSG_UNINSTALL_COMPLETE="✅ Tarsync가 성공적으로 제거되었습니다"
+MSG_UNINSTALL_FAILED="❌ 제거에 실패했습니다"
+MSG_UNINSTALL_ISSUES_FOUND="⚠️  제거 과정에서 모니타가 발견되었습니다:"
+MSG_UNINSTALL_MANUAL_CLEANUP_NEEDED="🧹 수동 정리가 필요할 수 있습니다"
+MSG_UNINSTALL_RESTART_TERMINAL="🔄 터미널을 다시 시작하거나 다음 명령을 실행하세요: source ~/.bashrc"
 MSG_UNINSTALL_BACKUP_PRESERVED="백업 데이터가 다음 위치에 보존되었습니다: %s"
 
 # ======================

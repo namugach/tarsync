@@ -24,6 +24,7 @@ INSTALL_DIR="/usr/local/bin"
 COMPLETION_DIR="/etc/bash_completion.d"
 ZSH_COMPLETION_DIR="/usr/share/zsh/site-functions"
 CONFIG_DIR="/etc/tarsync"
+USER_CONFIG_DIR="$HOME/.tarsync"
 
 # Check sudo privileges
 check_sudo_privileges() {
@@ -66,6 +67,12 @@ remove_tarsync() {
     if [ -f "$ZSH_COMPLETION_DIR/_tarsync" ]; then
         rm -f "$ZSH_COMPLETION_DIR/_tarsync"
         msg "MSG_SYSTEM_REMOVING_FILE" "$ZSH_COMPLETION_DIR/_tarsync"
+    fi
+    
+    # Remove user configuration directory (contains language settings)
+    if [ -d "$USER_CONFIG_DIR" ]; then
+        rm -rf "$USER_CONFIG_DIR"
+        msg "MSG_SYSTEM_REMOVING_FILE" "$USER_CONFIG_DIR"
     fi
     
     success_msg "MSG_UNINSTALL_COMPLETE"
@@ -112,6 +119,11 @@ verify_uninstallation() {
         issues+=("$(msg MSG_SYSTEM_FILE_EXISTS "$ZSH_COMPLETION_DIR/_tarsync")")
     fi
     
+    # Check user configuration directory
+    if [ -d "$USER_CONFIG_DIR" ]; then
+        issues+=("$(msg MSG_SYSTEM_DIRECTORY_EXISTS "$USER_CONFIG_DIR")")
+    fi
+    
     if [ ${#issues[@]} -gt 0 ]; then
         warn_msg "MSG_UNINSTALL_ISSUES_FOUND"
         for issue in "${issues[@]}"; do
@@ -141,6 +153,7 @@ confirm_uninstall() {
     msg "MSG_UNINSTALL_CONFIG_DIR" "$CONFIG_DIR"
     msg "MSG_INSTALL_LOCATION_BASH_COMPLETION" "$COMPLETION_DIR/tarsync"
     msg "MSG_INSTALL_LOCATION_ZSH_COMPLETION" "$ZSH_COMPLETION_DIR/_tarsync"
+    msg "MSG_UNINSTALL_USER_CONFIG" "$USER_CONFIG_DIR"
     echo ""
     
     printf "$(msg MSG_UNINSTALL_CONFIRM)"

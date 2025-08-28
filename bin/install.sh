@@ -415,11 +415,14 @@ copy_project_files() {
     cp -r "$PROJECT_ROOT/src/"* "$PROJECT_DIR/src/"
     cp -r "$PROJECT_ROOT/config/"* "$PROJECT_DIR/config/"
     
+    # 시스템 설정 디렉토리 생성
+    create_dir_if_not_exists "$CONFIG_DIR"
+
     # 설정 파일 생성 (언어 선택 및 백업 디렉토리 반영)
-    cat > "$PROJECT_DIR/config/settings.env" << EOF
+    cat > "$CONFIG_DIR/settings.env" << EOF
 # tarsync 기본 설정
-TARSYNC_LANG=${TARSYNC_LANG:-en}
-LANGUAGE=${TARSYNC_LANG:-en}
+TARSYNC_LANG=${selected_lang:-en}
+LANGUAGE=${selected_lang:-en}
 BACKUP_DIR=${BACKUP_DIRECTORY:-/mnt/backup/tarsync}
 LOG_LEVEL=info
 EOF
@@ -427,6 +430,7 @@ EOF
     log_info "$(msg MSG_INSTALL_FILES_COPIED)"
     log_info "$(msg MSG_INSTALL_BACKUP_LOCATION "${BACKUP_DIRECTORY:-/mnt/backup}")"
 }
+
 
 install_completions() {
     # 자동완성 디렉토리 생성
