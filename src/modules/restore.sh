@@ -543,6 +543,7 @@ execute_rsync() {
             msg "MSG_RESTORE_SYNC_COMPLETE" "${transferred_files}" "${total_size}" "${speedup}"
         else
             # 파일이 이미 최신 상태일 때 메시지 (번역 상수 추가 필요)
+            :
         fi
     fi
     
